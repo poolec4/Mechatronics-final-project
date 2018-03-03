@@ -12,6 +12,7 @@ char inpt_char[100];
 int inpt_ID;
 int inpt_IR;
 String out_ID;
+char out_ID_chr[100];
 
 void setup() {
 
@@ -40,20 +41,31 @@ void setup() {
 }
 
 void loop() {
-  if (Serial.available()) {      // Arduino Serial,
-    Serial1.write(Serial.read());   // Send to XBee
-  }
-
-  if (Serial1.available()) {     // XBee
-    inpt = Serial.readStringUntil('\n'); 
+//  if (Serial.available()) {      // Arduino Serial,
+//    Serial1.write(Serial.read());   // Send to XBee
+//  }
+  if (Serial1.available() > 0) {     // XBee
+    inpt = Serial1.readStringUntil('\n');
     inpt.toCharArray(inpt_char, inpt.length()+1);
     inpt_ID = parse_string_to_int(inpt_char, "M");
     inpt_IR = parse_string_to_int(inpt_char, "I");
+    if (inpt_IR == 1){
+      String disp = "Slave " + String(inpt_ID) + " found dummy signal";
+      Serial.println(disp);
+    }
+
+    if (inpt_IR == 2){
+      String disp = "Slave " + String(inpt_ID) + " found correct signal";
+      Serial.println(disp);
+    }
     for(int i=0; i<n; i++){
-      out_ID = "ATDL " + String(i) + "\r";
-      Serial1.println(out_ID);
-      read_char_from_serial(); //replace with Serial.flush()
-      Serial1.print(inpt);
+      out_ID = "ATDL " + String(IDs[i]) + "\r";
+      out_ID.toCharArray(out_ID_chr, out_ID.length()+1);
+      Serial1.println(out_ID_chr);
+      Serial1.flush();
+      //read_char_from_serial(); //replace with Serial.flush()
+      Serial1.println(inpt);
+      Serial1.flush();
     }
   }
 }
