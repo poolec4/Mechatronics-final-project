@@ -1,6 +1,11 @@
-/*  Xbee_param_set
-   Setting XBee parameters using Arduino
+/*  
+ * Xbee_Master
+ * Communication for XBee Master Node
 */
+
+int IDs[3] = {1, 2, 3};
+char inpt[100];
+
 void read_char_from_serial()
 {
   while(1)
@@ -40,11 +45,11 @@ void setup() {
   Serial1.print("+++");
   read_char_from_serial();
 
-  Serial1.print("ATID 1000\r");
+  Serial1.print("ATID 1000\r"); //Network
   read_char_from_serial();
-  Serial1.print("ATDL 42\r");
+  Serial1.print("ATDL 42\r"); //Other ID
   read_char_from_serial();
-  Serial1.print("ATMY 1\r");
+  Serial1.print("ATMY 1\r"); //My ID
   read_char_from_serial();
 
   Serial1.print("ATID\r");
@@ -64,7 +69,9 @@ void loop() {
   }
 
   if (Serial1.available()) {     // If anything comes in Serial1 (pins 0 & 1)
-    Serial.write(Serial1.read());   // read it and send it out Serial (USB)
+    inpt = 
+    //Serial.write(Serial1.read());   // read it and send it out Serial (USB)
+    
   }
 }
 
