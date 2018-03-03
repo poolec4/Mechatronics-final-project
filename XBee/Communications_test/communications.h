@@ -83,4 +83,30 @@ double parse_string_to_double(char *string, char const *tag)
   return result;
 }
 
+void read_char_from_serial(){
+  while(1){
+    char read_char;
+    while (!Serial1.available());
+    read_char = (char)Serial1.read();
+    Serial.print(read_char);
+    if(read_char == '\r')
+      break;
+  }
+  Serial.print('\n');
+}
+
+void read_hex_from_serial(){
+  String string_buff = "0x";
+  byte read_byte;
+  while(1){
+    while (!Serial1.available());
+    read_byte = (byte)Serial1.read();
+    if(read_byte == '\r')
+      break;
+    string_buff += String(read_byte,HEX);
+  }
+  Serial.print(string_buff);
+  Serial.print('\n');
+}
+
 #endif

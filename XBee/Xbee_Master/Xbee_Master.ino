@@ -3,6 +3,7 @@
  * Communication for XBee Master Node (Experimental)
 */
 #include <string.h>
+#include "communications.h"
 
 const int n = 3;
 int IDs[n] = {1, 2, 3};
@@ -22,9 +23,9 @@ void setup() {
 
   Serial1.print("ATID 1000\r"); //Network
   read_char_from_serial();
-  Serial1.print("ATDL 42\r"); //Other ID
+  Serial1.print("ATDL 1\r"); //Other ID
   read_char_from_serial();
-  Serial1.print("ATMY 1\r"); //My ID
+  Serial1.print("ATMY 0\r"); //My ID
   read_char_from_serial();
 
   Serial1.print("ATID\r");
@@ -57,57 +58,3 @@ void loop() {
   }
 }
 
-double parse_string_to_double(char *string, char const *tag){
-  
-  char* string_copy = (char*)malloc(strlen(string) + 1);
-  char* char_result;
-  char* token;
-  double result = 0.0;
-
-  strcpy(string_copy, string);
-  token = strtok(string_copy, "&");
-
-  while(token){
-    char* equals_sign = strchr(token, '=');
-    if(equals_sign){
-      *equals_sign = 0;
-      if( 0 == strcmp(token, tag)){
-        equals_sign++;
-        char_result = (char*)malloc(strlen(equals_sign) + 1);
-        strcpy(char_result, equals_sign);
-        result = atof(char_result);
-        free(char_result);
-      }
-    }
-    token = strtok(0, "&");
-  }
-  free(string_copy);
-
-  return result;
-}
-
-void read_char_from_serial(){
-  while(1){
-    char read_char;
-    while (!Serial1.available());
-    read_char = (char)Serial1.read();
-    Serial.print(read_char);
-    if(read_char == '\r')
-      break;
-  }
-  Serial.print('\n');
-}
-
-void read_hex_from_serial(){
-  String string_buff = "0x";
-  byte read_byte;
-  while(1){
-    while (!Serial1.available());
-    read_byte = (byte)Serial1.read();
-    if(read_byte == '\r')
-      break;
-    string_buff += String(read_byte,HEX);
-  }
-  Serial.print(string_buff);
-  Serial.print('\n');
-}
