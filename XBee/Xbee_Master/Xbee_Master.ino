@@ -1,6 +1,6 @@
 /*  
  * Xbee_Master
- * Communication for XBee Master Node
+ * Communication for XBee Master Node (Experimental)
 */
 
 int IDs[3] = {1, 2, 3};
