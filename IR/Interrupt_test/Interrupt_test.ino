@@ -1,67 +1,64 @@
-unsigned long time_stamp;
-unsigned int count0 = 0;
-unsigned int count1 = 0;
-unsigned int count2 = 0;
-
-
-unsigned int output0 = 0;
-unsigned int output1 = 0;
-unsigned int output2 = 0;
-
+const int num_samples = 3;
+int count = 0;
+unsigned long t_change, t_old, t_delay;
+float f[num_samples], f_median;
+volatile byte state_change = false;
 
 void setup()
 {
   Serial.begin(9600);
-  time_stamp = millis();
-  attachInterrupt(0, sensor0, RISING); // sensor 1 on mega pin no 2 Due pin 0
-  attachInterrupt(1, sensor1, RISING); // sensor 2 on mega pin no 3 Due Pin 1
-  attachInterrupt(2, sensor2, RISING); // sensor 3 on mega pin no 21 Due Pin 2
+  t_change = millis();
+  t_old = millis();
+  attachInterrupt(digitalPinToInterrupt(2), irStateChange, CHANGE);
 }
-
 
 void loop()
 {
-  if(millis() - time_stamp > 50)
+  if(state_change == true)
   {
-    detachInterrupt(0); // disable interrups
-    detachInterrupt(1);
-    detachInterrupt(2);
-    output0 = count0 * 20;
-    output1 = count1 * 20;
-    output2 = count2 * 20;
-    Serial.print("Sensor0 Reading = ");
-    Serial.println(output0);
-    Serial.print("Sensor1 Reading = ");
-    Serial.println(output1);
-    Serial.print("Sensor2 Reading = ");
-    Serial.println(output2);
-    delay(40);
-    count0 = 0;
-    count1 = 0;
-    count2 = 0;
-    time_stamp = millis();
-    attachInterrupt(0, sensor0, RISING); // we have done with this mesasurenment,enable interrups for next cycle
-    attachInterrupt(1, sensor1, RISING);
-    attachInterrupt(2, sensor2, RISING);
+    t_delay = t_change-t_old;
+    f[count] = (float)1.0/(t_delay/1000.0*2.0);
+    count++;
+    t_old = t_change;
+    state_change = false;
+
+    if(count >= num_samples)
+    {  
+      sortFreq();
+      
+      if(num_samples%2 == 0)
+      {  
+        f_median = (f[(int)floor((float)num_samples/2.0)]+f[(int)ceil((float)num_samples/2.0)])/2.0;
+      }
+      else
+      {
+        f_median = f[(int)floor((float)num_samples/2.0)];  
+      }
+      
+      count = 0; 
+      Serial.print("Frequency = ");
+      Serial.println(f_median);
+    }
   }
 }
 
 
-void sensor0()
+void irStateChange()
 {
-  count0++;
+  t_change = millis();
+  state_change = true;
 }
 
-
-void sensor1()
-{
-  count1++;
+void sortFreq() {
+  for (int i = 1; i < num_samples; i++){
+       float key = f[i];
+       int j = i-1;
+       while (j >= 0 && f[j] > key)
+       {
+           f[j+1] = f[j];
+           j = j-1;
+       }
+       f[j+1] = key;
+   }
 }
-
-
-void sensor2()
-{
-  count2++;
-}
-
 

@@ -1,0 +1,3 @@
+[submodule "QuickStats"]
+	path = QuickStats
+	url = https://github.com/dndubins/QuickStats.git
