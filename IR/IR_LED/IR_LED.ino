@@ -1,32 +1,38 @@
-double f2 = 10;
-
-double T2 = 1.0/f2;
-
-unsigned long t_old1;
+double f= 10;
+double T = 1.0/f;
 unsigned long t_old;
+boolean b = false;
 
-boolean bool2 = false;
-
-int outPin = 7;
+int outPin = 10;
 
 void setup() {
   Serial.begin(9600);
-  t_old = micros();
+  t_old = millis();
   pinMode(outPin, OUTPUT);
-  Serial.println(f2);
-  Serial.println(T2);
+  Serial.print("Frequency: ");
+  Serial.println(f);
+  Serial.print("Period: ");
+  Serial.println(T);
   
 }
 
 void loop() {
-  if (abs(micros()-t_old) >= T2*1000000.0/2.0){
-    bool2 = !(bool2);
-    if (bool2 == true){
-      tone(10, 38000);
+  if (Serial.available() > 0){
+    f = Serial.parseInt();
+    T = 1.0/f;
+    Serial.print("Frequency: ");
+    Serial.println(f);
+    Serial.print("Period: ");
+    Serial.println(T);
+  }
+  if (abs(millis()-t_old) >= T*1000.0/2.0){
+    b = !(b);
+    if (b == true){
+      tone(outPin, 38000);
     }
     else{
-      noTone(10);
+      noTone(outPin);
     }
-    t_old = micros();
+    t_old = millis();
   }
 }
