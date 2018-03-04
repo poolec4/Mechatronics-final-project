@@ -23,7 +23,7 @@
 */
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(57600);
   Serial1.begin(9600);
 }
 

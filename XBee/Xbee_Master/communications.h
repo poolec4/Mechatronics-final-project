@@ -87,7 +87,7 @@ double parse_string_to_double(char *string, char const *tag)
   return result;
 }
 
-void read_char_from_serial(){
+void read_char_from_serial1(){
   while(1){
     char read_char;
     while (!Serial1.available());
@@ -99,7 +99,7 @@ void read_char_from_serial(){
   Serial.print('\n');
 }
 
-void read_hex_from_serial(){
+void read_hex_from_serial1(){
   String string_buff = "0x";
   byte read_byte;
   while(1){
