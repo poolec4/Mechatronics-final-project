@@ -4,6 +4,7 @@
 
 #include <string.h>
 #include "communications.h"
+#include "frequency.h"
 
 /* Definitions */
 const int SLAVE_ID = 2;
