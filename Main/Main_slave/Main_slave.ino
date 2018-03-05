@@ -17,7 +17,8 @@ const int YELLOW_LED_PIN = 10;
 const int IR_SENSE_PIN = 2;
 boolean IR_sense = true;
 boolean freq_sense = true;
-const int num_samples = 3;
+const int num_samples = 5;
+const int IR_SENSE_DELAY = 250;
 int count = 0;
 unsigned long t_change, t_old, t_delay;
 float f[num_samples], f_median;
@@ -30,6 +31,8 @@ String inpt;
 char inpt_char[100];
 int inpt_ID;
 int inpt_IR;
+unsigned long t_sent;
+const unsigned long SEND_DELAY = 500;
 
 char send_array[100];
 
@@ -37,6 +40,9 @@ void setup() {
   t_change = millis();
   t_old = millis();
   attachInterrupt(digitalPinToInterrupt(2), irStateChange, CHANGE);
+  pinMode(GREEN_LED_PIN, OUTPUT);
+  pinMode(RED_LED_PIN, OUTPUT);
+  pinMode(YELLOW_LED_PIN, OUTPUT);
 
   Serial.begin(57600);
   Serial.setTimeout(10);
@@ -68,6 +74,7 @@ void loop() {
   if(IR_state_change == true)
   {
     calculateFreq();
+    Serial.println(f_median);
   }
 
   if(f_median > 8.0 && f_median < 12.0){
@@ -79,14 +86,13 @@ void loop() {
     freq_sense = false;
   }
 
-  if(millis()-t_change > 500){ // timeout if signal hasn't been seen for a while
+  if(millis()-t_change > IR_SENSE_DELAY){ // timeout if signal hasn't been seen for a while
     IR_sense = false;
     freq_sense = false;
   }
   
   //* TRANSMITTING *//
   
-  strcpy(send_array, "");
 
   if (IR_sense == false && freq_sense == false) { // no signal
     IR_state = 0;
@@ -98,16 +104,21 @@ void loop() {
     digitalWrite(GREEN_LED_PIN, LOW);
     digitalWrite(RED_LED_PIN, HIGH);
   }
-  if (IR_sense && freq_sense) { // true signal
+  if (IR_sense == true && freq_sense == true) { // true signal
     IR_state = 2;
     digitalWrite(GREEN_LED_PIN, HIGH);
     digitalWrite(RED_LED_PIN, LOW);
   }
 
-  add_int_to_string(send_array, THIS_SLAVE_ID, "M", false);
-  add_int_to_string(send_array, IR_state, "I", true);
-
-  Serial1.print(send_array);
+  if(millis()-t_sent > SEND_DELAY){
+    strcpy(send_array, "");
+  
+    add_int_to_string(send_array, THIS_SLAVE_ID, "M", false);
+    add_int_to_string(send_array, IR_state, "I", true);
+  
+    Serial1.print(send_array);
+    t_sent = millis();
+  }
   
   //* RECEIVING *//
   
@@ -133,7 +144,6 @@ void loop() {
     }
   }
 
-  delay(1000);
   Serial1.flush();
   Serial.flush();
 }

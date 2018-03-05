@@ -6,7 +6,7 @@ volatile byte IR_state_change = false;
 
 void setup()
 {
-  Serial.begin(9600);
+  Serial.begin(57600);
   t_change = millis();
   t_old = millis();
   attachInterrupt(digitalPinToInterrupt(2), irStateChange, CHANGE);

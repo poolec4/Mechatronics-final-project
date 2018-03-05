@@ -5,8 +5,6 @@
 #include <string.h>
 #include "communications.h"
 
-const int GREEN_LED_PIN = 8;
-const int RED_LED_PIN = 9;
 const int YELLOW_LED_PIN = 10;
 
 const int n = 3;
@@ -19,6 +17,7 @@ String out_ID;
 char out_ID_chr[100];
 
 void setup() {
+  pinMode(YELLOW_LED_PIN, OUTPUT);
 
   Serial.begin(57600);
   Serial.setTimeout(10);
