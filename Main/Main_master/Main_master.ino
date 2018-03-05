@@ -59,14 +59,11 @@ void loop() {
 //      Serial.println(disp);
       digitalWrite(YELLOW_LED_PIN, HIGH);
     }
-    else if (inpt_IR[0] != 2 && inpt_IR[1] != 2 && inpt_IR[2] != 2) {
+    else { 
 //      String disp = "   Slave " + String(inpt_ID) + " found nothing";
 //      Serial.println(disp);
       digitalWrite(YELLOW_LED_PIN, LOW);
     }
-
-
-
 
     Serial1.println(inpt);
 
