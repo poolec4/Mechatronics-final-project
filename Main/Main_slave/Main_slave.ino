@@ -133,11 +133,11 @@ void loop() {
     inpt_IR[inpt_ID - IDs[0]] = parse_string_to_int(inpt_char, "I");
 
     if(inpt_ID != THIS_SLAVE_ID){
-      if (inpt_IR[0] == 0 || inpt_IR[1] == 0 || inpt_IR[2] == 0){ // someone else found nothing
+      if (inpt_IR[0] == 0 && inpt_IR[1] == 0 && inpt_IR[2] == 0){ // someone else found nothing
         digitalWrite(YELLOW_LED_PIN, LOW);
       }
       
-      if (inpt_IR[0] == 1 || inpt_IR[1] == 1 || inpt_IR[2] == 1){ // someone else found the dummy
+      if (inpt_IR[0] == 1 && inpt_IR[1] == 1 && inpt_IR[2] == 1){ // someone else found the dummy
         digitalWrite(YELLOW_LED_PIN, LOW);
       }
       

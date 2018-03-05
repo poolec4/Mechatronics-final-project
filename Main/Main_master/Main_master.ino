@@ -52,25 +52,21 @@ void loop() {
     inpt.toCharArray(inpt_char, inpt.length() + 1);
     inpt_ID = parse_string_to_int(inpt_char, "M");
     inpt_IR[inpt_ID - IDs[0]] = parse_string_to_int(inpt_char, "I");
-    Serial.print(inpt);
-
-    if (inpt_IR[0] == 0 || inpt_IR[1] == 0 || inpt_IR[2] == 0) {
-      String disp = "   Slave " + String(inpt_ID) + " found nothing";
-      Serial.println(disp);
-      digitalWrite(YELLOW_LED_PIN, LOW);
-    }
-
-    if (inpt_IR[0] == 1 || inpt_IR[1] == 1 || inpt_IR[2] == 1) {
-      String disp = "   Slave " + String(inpt_ID) + " found dummy signal";
-      Serial.println(disp);
-      digitalWrite(YELLOW_LED_PIN, LOW);
-    }
+    Serial.println(inpt);
 
     if (inpt_IR[0] == 2 || inpt_IR[1] == 2 || inpt_IR[2] == 2) {
-      String disp = "   Slave " + String(inpt_ID) + " found correct signal";
-      Serial.println(disp);
+//      String disp = "   Slave " + String(inpt_ID) + " found correct signal";
+//      Serial.println(disp);
       digitalWrite(YELLOW_LED_PIN, HIGH);
     }
+    else if (inpt_IR[0] != 2 && inpt_IR[1] != 2 && inpt_IR[2] != 2) {
+//      String disp = "   Slave " + String(inpt_ID) + " found nothing";
+//      Serial.println(disp);
+      digitalWrite(YELLOW_LED_PIN, LOW);
+    }
+
+
+
 
     Serial1.println(inpt);
 
