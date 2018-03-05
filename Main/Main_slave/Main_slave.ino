@@ -7,11 +7,14 @@
 
 /* Definitions */
 const int SLAVE_ID = 2;
-const int THIS_SLAVE_ID = 2;
+const int THIS_SLAVE_ID = 4;
 
 const int GREEN_LED_PIN = 8;
 const int RED_LED_PIN = 9;
 const int YELLOW_LED_PIN = 10;
+
+const int n = 3;
+int IDs[n] = {2, 3, 4};
 
 /* IR Stuff */
 const int IR_SENSE_PIN = 2;
@@ -30,7 +33,7 @@ int IR_state = 1;  // 0 = nothing, 1 = ir but wrong freq, 2 = right freq
 String inpt;
 char inpt_char[100];
 int inpt_ID;
-int inpt_IR;
+int inpt_IR[3];
 unsigned long t_sent;
 const unsigned long SEND_DELAY = 500;
 
@@ -46,7 +49,7 @@ void setup() {
 
   Serial.begin(57600);
   Serial.setTimeout(10);
-  Serial1.begin(57600);
+  Serial1.begin(9600);
 
   Serial1.print("+++");
   read_char_from_serial();
@@ -121,24 +124,24 @@ void loop() {
   }
   
   //* RECEIVING *//
-  
 
   if (Serial1.available()) {     
     inpt = Serial1.readStringUntil('\n');
     inpt.toCharArray(inpt_char, inpt.length()+1);
     inpt_ID = parse_string_to_int(inpt_char, "M");
-    inpt_IR = parse_string_to_int(inpt_char, "I");
+    
+    inpt_IR[inpt_ID - IDs[0]] = parse_string_to_int(inpt_char, "I");
 
     if(inpt_ID != THIS_SLAVE_ID){
-      if (inpt_IR == 0){ // someone else found nothing
+      if (inpt_IR[0] == 0 || inpt_IR[1] == 0 || inpt_IR[2] == 0){ // someone else found nothing
         digitalWrite(YELLOW_LED_PIN, LOW);
       }
       
-      if (inpt_IR == 1){ // someone else found the dummy
+      if (inpt_IR[0] == 1 || inpt_IR[1] == 1 || inpt_IR[2] == 1){ // someone else found the dummy
         digitalWrite(YELLOW_LED_PIN, LOW);
       }
       
-      if (inpt_IR == 2){ // someone else found the real signal
+      if (inpt_IR[0] == 2 || inpt_IR[1] == 2 || inpt_IR[2] == 2){ // someone else found the real signal
         digitalWrite(YELLOW_LED_PIN, HIGH);
       }
     }

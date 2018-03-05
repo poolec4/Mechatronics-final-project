@@ -12,7 +12,7 @@ int IDs[n] = {2, 3, 4};
 String inpt;
 char inpt_char[100];
 int inpt_ID;
-int inpt_IR;
+int inpt_IR[3];
 String out_ID;
 char out_ID_chr[100];
 
@@ -51,22 +51,22 @@ void loop() {
     inpt = Serial1.readStringUntil('\n');
     inpt.toCharArray(inpt_char, inpt.length() + 1);
     inpt_ID = parse_string_to_int(inpt_char, "M");
-    inpt_IR = parse_string_to_int(inpt_char, "I");
+    inpt_IR[inpt_ID - IDs[0]] = parse_string_to_int(inpt_char, "I");
     Serial.print(inpt);
 
-    if (inpt_IR == 0) {
+    if (inpt_IR[0] == 0 || inpt_IR[1] == 0 || inpt_IR[2] == 0) {
       String disp = "   Slave " + String(inpt_ID) + " found nothing";
       Serial.println(disp);
       digitalWrite(YELLOW_LED_PIN, LOW);
     }
 
-    if (inpt_IR == 1) {
+    if (inpt_IR[0] == 1 || inpt_IR[1] == 1 || inpt_IR[2] == 1) {
       String disp = "   Slave " + String(inpt_ID) + " found dummy signal";
       Serial.println(disp);
       digitalWrite(YELLOW_LED_PIN, LOW);
     }
 
-    if (inpt_IR == 2) {
+    if (inpt_IR[0] == 2 || inpt_IR[1] == 2 || inpt_IR[2] == 2) {
       String disp = "   Slave " + String(inpt_ID) + " found correct signal";
       Serial.println(disp);
       digitalWrite(YELLOW_LED_PIN, HIGH);
