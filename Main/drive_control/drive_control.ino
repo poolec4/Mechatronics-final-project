@@ -50,7 +50,7 @@ void loop() {
 
 void getButtonValues(){
   if (digitalRead(upPin) == HIGH){
-    Serial.println("Up");
+    Serial.println("Up - changed");
     up = true;
   }
   else{
