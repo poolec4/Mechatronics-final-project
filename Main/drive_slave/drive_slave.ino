@@ -11,12 +11,18 @@ const int SLAVE_ID = 2;
 int inpt_ID;
 int rMotVal;
 int lMotVal;
+int temprMotVal;
+int templMotVal;
+int numDropped = 0;
 
 String inpt;
 char inpt_char[100];
 
-const int qtiPin = 13;
-int qtiVal;
+const int qtiPin = 52;
+
+int qtiVal = 0;
+int qtiThresh = 400;
+bool kill = false;
 
 Servo right_servo;
 Servo left_servo;
@@ -28,8 +34,8 @@ void setup() {
   Serial.setTimeout(10);
   Serial1.begin(9600);
   Serial1.setTimeout(15);
-  right_servo.write(92);
-  left_servo.write(92);
+  right_servo.write(90);
+  left_servo.write(90);
 
   Serial1.print("+++");
   read_char_from_serial1();
@@ -52,9 +58,13 @@ void setup() {
 }
 
 void loop() {
-  QTI_read(qtiPin);
+  qtiVal = QTI_read(qtiPin);
+  if (qtiVal >= qtiThresh){
+    kill = true;
+    Serial.println("I am dead");
+  }
   // Get Signal from XBee
-  if (Serial1.available()) {     
+  if (Serial1.available() && kill == false) {     
     getInptID();
     if (inpt_ID == my_ID){
       getMotorVals();
@@ -71,8 +81,8 @@ void getInptID(){ // Gets the ID from the message header
 }
 
 void getMotorVals(){ // Gets motor values from message
-   rMotVal = parse_string_to_int(inpt_char, "R");
-   lMotVal = parse_string_to_int(inpt_char, "L");
+   temprMotVal = parse_string_to_int(inpt_char, "R");
+   templMotVal = parse_string_to_int(inpt_char, "L");
    validMes();
 }
 
@@ -84,15 +94,23 @@ void writeMotorVals(){
 void printMotorVals(){
   Serial.println(inpt);
   Serial.print("Right Motor Value: ");
-  Serial.println(180-rMotVal);
+  Serial.println(rMotVal);
   Serial.print("Left Motor Value: ");
   Serial.println(lMotVal);
 }
 
 void validMes(){
-  if(rMotVal < 20 || lMotVal < 20 || rMotVal > 180 || lMotVal > 180){
-    rMotVal = 88;
-    lMotVal = 92;
+  if(temprMotVal < 20 || templMotVal < 20 || temprMotVal > 180 || templMotVal > 180){
+    numDropped = numDropped + 1;
+  }
+  else{
+    numDropped = 0;
+    rMotVal = temprMotVal;
+    lMotVal = templMotVal;
+  }
+  if (numDropped >= 3){
+    rMotVal = 90;
+    lMotVal = 90; 
   }
 }
 
