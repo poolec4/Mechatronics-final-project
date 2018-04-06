@@ -113,8 +113,8 @@ void read_hex_from_serial1(){
   Serial.print('\n');
 }
 
-float QTI_read(int QTI_PIN) {
-  float duration = 0;
+int QTI_read(int QTI_PIN) {
+  int duration = 0;
   pinMode(QTI_PIN, OUTPUT); // Sets pin as OUTPUT
   digitalWrite(QTI_PIN, HIGH); // Pin HIGH
   delayMicroseconds(500); // Waits for 0.5 millisecond
@@ -122,10 +122,10 @@ float QTI_read(int QTI_PIN) {
   digitalWrite(QTI_PIN, LOW); // Pin LOW
 
   while (digitalRead(QTI_PIN)) { // Waits for the pin to go LOW
-    duration++;
+    int++;
   }
   
-  return duration; // Returns the duration of the pulse
+  int duration; // Returns the duration of the pulse
 }
 
 #endif

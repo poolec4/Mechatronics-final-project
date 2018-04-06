@@ -6,6 +6,19 @@ int downPin = 8;
 int rightPin = 6;
 int leftPin = 7;
 
+// Cycle Slave Stuff
+const int cyclePin = 10;
+int slaveIndex = 0;
+bool buttonState;
+bool lastButtonState = LOW;
+unsigned long lastDebounceTime = 0;  // the last time the output pin was toggled
+unsigned long debounceDelay = 50;    // the debounce time; increase if the output flickers
+
+//LED Pins
+const int redPin = 51;
+const int yellowPin = 50;
+const int greenPin = 52;
+
 // Button State Boolean Values
 bool up = false;
 bool down = false;
@@ -20,7 +33,7 @@ int leftServo;
 const int n = 3;
 int IDs[n] = {2, 3, 4};
 char out_ID_chr[100];
-int SLAVE_ID = 4;
+int SLAVE_ID = IDs[slaveIndex];
 
 char send_array[100];
 
@@ -47,12 +60,18 @@ void setup() {
   read_char_from_serial1();
   Serial1.print("ATMY\r");
   read_char_from_serial1();
+  
+  pinMode(redPin, OUTPUT);
+  pinMode(yellowPin, OUTPUT);
+  pinMode(greenPin, OUTPUT);
+  robotLEDs();
 }
 
 void loop() {
   getButtonValues();
   calcMotorValues();
   sendMotorValues();
+  cycleSlave();
 }
 
 void getButtonValues() {
@@ -105,11 +124,6 @@ void calcMotorValues() {
     leftServo += 20;
     rightServo -= 20;
   }
-
-//  Serial.println("Right Motor Value: ");
-//  Serial.print(rightServo);
-//  Serial.println("Left Motor Value: ");
-//  Serial.print(leftServo);
 }
 
 void sendMotorValues() {
@@ -119,5 +133,46 @@ void sendMotorValues() {
   add_int_to_string(send_array, rightServo, "R", true);
   Serial.println(send_array);
   Serial1.println(send_array);
+}
+
+void cycleSlave(){
+  buttonState = digitalRead(cyclePin);
+  if (buttonState != lastButtonState && (millis()-lastDebounceTime) > debounceDelay){ // Update Slave
+    lastDebounceTime = millis();
+    if (buttonState == HIGH){
+      if (slaveIndex < 2){
+       slaveIndex++;
+      }
+      else{
+        slaveIndex = 0;
+      }
+      SLAVE_ID = IDs[slaveIndex];
+      robotLEDs();
+      Serial.print("Slave ID: ");
+      Serial.println(SLAVE_ID);
+    }
+  }
+  lastButtonState = buttonState;
+}
+
+void robotLEDs(){
+  // Write all LEDs Low
+  digitalWrite(redPin, LOW);
+  digitalWrite(yellowPin, LOW);
+  digitalWrite(greenPin, LOW);
+  switch(SLAVE_ID){
+    case 2:
+      digitalWrite(greenPin, HIGH);
+      Serial.println("Green");
+      break;
+    case 3:
+      digitalWrite(yellowPin, HIGH);
+      Serial.println("Yellow");
+      break;
+    case 4:
+      Serial.println("Red");
+      digitalWrite(redPin, HIGH);
+      break;
+  }
 }
 
