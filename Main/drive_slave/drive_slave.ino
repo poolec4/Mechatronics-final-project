@@ -15,7 +15,7 @@ int lMotVal;
 String inpt;
 char inpt_char[100];
 
-const int qtiPin 13;
+const int qtiPin = 13;
 int qtiVal;
 
 Servo right_servo;

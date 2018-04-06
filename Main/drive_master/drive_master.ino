@@ -39,7 +39,7 @@ char send_array[100];
 
 void setup() {
   Serial.begin(9600);
-  Serial1.begin(9600);
+  Serial1.begin(57600);
   Serial1.setTimeout(10);
 
   Serial1.print("+++");
