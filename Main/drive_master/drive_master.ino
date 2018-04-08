@@ -41,7 +41,7 @@ void setup() {
   Serial.begin(9600);
   Serial1.begin(57600);
   Serial1.setTimeout(10);
-
+  Serial1.flush();
   Serial1.print("+++");
   read_char_from_serial1();
 
@@ -60,6 +60,7 @@ void setup() {
   read_char_from_serial1();
   Serial1.print("ATMY\r");
   read_char_from_serial1();
+  Serial1.flush();
   
   pinMode(redPin, OUTPUT);
   pinMode(yellowPin, OUTPUT);
@@ -106,8 +107,8 @@ void getButtonValues() {
 }
 
 void calcMotorValues() {
-  rightServo = 88;
-  leftServo = 92;
+  rightServo = 90;
+  leftServo = 90;
   if (up == HIGH) {
     rightServo += 60;
     leftServo += 60;

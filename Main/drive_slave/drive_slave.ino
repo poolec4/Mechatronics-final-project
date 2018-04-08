@@ -24,6 +24,8 @@ int qtiVal = 0;
 int qtiThresh = 400;
 bool kill = false;
 
+const int LEDPin = 24;
+
 Servo right_servo;
 Servo left_servo;
 
@@ -36,7 +38,7 @@ void setup() {
   Serial1.setTimeout(15);
   right_servo.write(90);
   left_servo.write(90);
-
+  Serial1.flush();
   Serial1.print("+++");
   read_char_from_serial1();
 
@@ -54,14 +56,22 @@ void setup() {
   Serial1.print("ATDL\r");
   read_char_from_serial1();
   Serial1.print("ATMY\r");
-  read_char_from_serial1();
+  read_char_from_serial1();  
+  Serial1.flush();
+  Serial.println("Ready");
+  pinMode(LEDPin, OUTPUT);
+  digitalWrite(LEDPin, LOW);
 }
 
 void loop() {
   qtiVal = QTI_read(qtiPin);
+  Serial.println(qtiVal);
   if (qtiVal >= qtiThresh){
     kill = true;
-    Serial.println("I am dead");
+    digitalWrite(LEDPin, HIGH);
+    right_servo.write(90);
+    left_servo.write(90);
+    Serial.println("Dead");
   }
   // Get Signal from XBee
   if (Serial1.available() && kill == false) {     
@@ -108,7 +118,7 @@ void validMes(){
     rMotVal = temprMotVal;
     lMotVal = templMotVal;
   }
-  if (numDropped >= 3){
+  if (numDropped >= 5){
     rMotVal = 90;
     lMotVal = 90; 
   }
