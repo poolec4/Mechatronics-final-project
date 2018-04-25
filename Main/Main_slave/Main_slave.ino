@@ -4,17 +4,38 @@
 
 #include <string.h>
 #include "communications.h"
+#include <Servo.h>
 
 /* Definitions */
-const int SLAVE_ID = 2;
-const int THIS_SLAVE_ID = 4;
-
+const int SLAVE_ID = 2; // Channel ID
+const int THIS_SLAVE_ID = 4; // Header ID - Change for each slave
+// LED Pins
 const int GREEN_LED_PIN = 8;
 const int RED_LED_PIN = 9;
 const int YELLOW_LED_PIN = 10;
-
+// Servo Pins
+const int leftServoPin = 4;
+const int rightServoPin = 5;
+// QTI Pin
+const int qtiPin = 52;
+// IDs
 const int n = 3;
 int IDs[n] = {2, 3, 4};
+
+/* QTI Stuff */
+int qtiVal = 0;
+int qtiThresh = 400;
+bool kill = false;
+
+/* Servo Stuff*/
+Servo right_servo;
+Servo left_servo;
+
+int rMotVal;
+int lMotVal;
+int temprMotVal;
+int templMotVal;
+int numDropped = 0;
 
 /* IR Stuff */
 const int IR_SENSE_PIN = 2;
@@ -47,33 +68,108 @@ void setup() {
   pinMode(RED_LED_PIN, OUTPUT);
   pinMode(YELLOW_LED_PIN, OUTPUT);
 
-  Serial.begin(57600);
+  right_servo.attach(rightServoPin);
+  left_servo.attach(leftServoPin);
+  Serial.begin(9600);
   Serial.setTimeout(10);
   Serial1.begin(9600);
-
+  Serial1.setTimeout(15);
+  right_servo.write(90);
+  left_servo.write(90);
+  Serial1.flush();
   Serial1.print("+++");
-  read_char_from_serial();
+  read_char_from_serial1();
 
   Serial1.print("ATID 1000\r");
-  read_char_from_serial();
+  read_char_from_serial1();
   Serial1.print("ATDL 1\r");
-  read_char_from_serial();
+  read_char_from_serial1();
   Serial1.print("ATMY " + String(SLAVE_ID) + "\r");
-  read_char_from_serial();
+  read_char_from_serial1();
 
   Serial1.print("ATID\r");
-  read_char_from_serial();
+  read_char_from_serial1();
   Serial1.print("ATDH\r");
-  read_char_from_serial();
+  read_char_from_serial1();
   Serial1.print("ATDL\r");
-  read_char_from_serial();
+  read_char_from_serial1();
   Serial1.print("ATMY\r");
-  read_char_from_serial();
+  read_char_from_serial1();  
+  Serial1.flush();
+  Serial.println("Ready");
 }
 
 void loop() {
-  //* IR SENSE *//
+  IRSense();
+  IRLEDs();
+  qtiVal = QTIRead(qtiPin);
+  amIDead();
+  if (Serial1.available() && kill == false) {     
+    getInptID();
+    if (inpt_ID == THIS_SLAVE_ID){
+      getMotorVals();
+      writeMotorVals();
+      printMotorVals();
+    }
+  }
+  // IRTransmit();  
+  // IRRec();
+  Serial1.flush();
+  Serial.flush();
+}
 
+void getInptID(){ // Gets the ID from the message header
+  inpt = Serial1.readStringUntil('\n');
+  inpt.toCharArray(inpt_char, inpt.length()+1);
+  inpt_ID = parse_string_to_int(inpt_char, "M"); 
+}
+
+void getMotorVals(){ // Gets motor values from message
+   temprMotVal = parse_string_to_int(inpt_char, "R");
+   templMotVal = parse_string_to_int(inpt_char, "L");
+   validMes();
+}
+
+void writeMotorVals(){
+  right_servo.write(180-rMotVal);
+  left_servo.write(lMotVal);
+}
+
+void printMotorVals(){
+  Serial.println(inpt);
+  Serial.print("Right Motor Value: ");
+  Serial.println(rMotVal);
+  Serial.print("Left Motor Value: ");
+  Serial.println(lMotVal);
+}
+
+void validMes(){
+  if(temprMotVal < 20 || templMotVal < 20 || temprMotVal > 180 || templMotVal > 180){
+    numDropped = numDropped + 1;
+  }
+  else{
+    numDropped = 0;
+    rMotVal = temprMotVal;
+    lMotVal = templMotVal;
+  }
+  if (numDropped >= 5){
+    rMotVal = 90;
+    lMotVal = 90; 
+  }
+}
+
+
+void amIDead(){
+  if (qtiVal >= qtiThresh){
+    kill = true;
+    digitalWrite(RED_LED_PIN, HIGH);
+    right_servo.write(90);
+    left_servo.write(90);
+    Serial.println("I am dead"); 
+  }
+}
+
+void IRSense(){
   if(IR_state_change == true)
   {
     calculateFreq();
@@ -93,10 +189,20 @@ void loop() {
     IR_sense = false;
     freq_sense = false;
   }
-  
-  //* TRANSMITTING *//
-  
+}
 
+IRLEDs(){
+  if (IR_sense == True && freq_sense == True){
+    digitalWrite(GREEN_LED_PIN, HIGH);
+    digitalWrite(YELLOW_LED_PIN, LOW);
+  }
+  else{
+    digitalWrite(GREEN_LED_PIN, LOW);
+    digitalWrite(YELLOW_LED_PIN, HIGH);
+  }
+}
+
+void IRTransmit(){
   if (IR_sense == false && freq_sense == false) { // no signal
     IR_state = 0;
     digitalWrite(GREEN_LED_PIN, LOW);
@@ -122,9 +228,9 @@ void loop() {
     Serial1.print(send_array);
     t_sent = millis();
   }
-  
-  //* RECEIVING *//
+}
 
+void IRRec(){
   if (Serial1.available()) {     
     inpt = Serial1.readStringUntil('\n');
     inpt.toCharArray(inpt_char, inpt.length()+1);
@@ -146,11 +252,7 @@ void loop() {
       }
     }
   }
-
-  Serial1.flush();
-  Serial.flush();
 }
-
 
 void irStateChange()
 {

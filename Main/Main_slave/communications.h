@@ -87,7 +87,7 @@ double parse_string_to_double(char *string, char const *tag)
   return result;
 }
 
-void read_char_from_serial(){
+void read_char_from_serial1(){
   while(1){
     char read_char;
     while (!Serial1.available());
@@ -99,7 +99,7 @@ void read_char_from_serial(){
   Serial.print('\n');
 }
 
-void read_hex_from_serial(){
+void read_hex_from_serial1(){
   String string_buff = "0x";
   byte read_byte;
   while(1){
@@ -111,6 +111,21 @@ void read_hex_from_serial(){
   }
   Serial.print(string_buff);
   Serial.print('\n');
+}
+
+float QTIRead(int QTI_PIN) {
+  float duration = 0;
+  pinMode(QTI_PIN, OUTPUT); // Sets pin as OUTPUT
+  digitalWrite(QTI_PIN, HIGH); // Pin HIGH
+  delayMicroseconds(500); // Waits for 0.5 millisecond
+  pinMode(QTI_PIN, INPUT); // Sets pin as INPUT
+  digitalWrite(QTI_PIN, LOW); // Pin LOW
+
+  while (digitalRead(QTI_PIN)) { // Waits for the pin to go LOW
+    duration = duration + 1;
+  }
+  
+  return duration; // Returns the duration of the pulse
 }
 
 #endif
