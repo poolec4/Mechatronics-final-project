@@ -2,8 +2,8 @@
 #include "communications.h"
 #include <Servo.h>
 
-const int leftServoPin = 2;
-const int rightServoPin = 3;
+const int leftServoPin = 4;
+const int rightServoPin = 5;
 
 const int my_ID = 4; // Change for each slave
 const int SLAVE_ID = 2;
