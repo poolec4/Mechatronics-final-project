@@ -22,9 +22,9 @@ int IDs[n] = {2, 3, 4};
 int SLAVE_ID = IDs[slaveIndex];
 
 //LED Pins
-const int redPin = 51;
-const int yellowPin = 50;
-const int greenPin = 52;
+const int redPin = 50;
+const int yellowPin = 52;
+const int greenPin = 51;
 const int detectIRPin = 53; //Not in use
 
 // Button State Boolean Values

@@ -8,14 +8,15 @@
 
 /* Definitions */
 const int SLAVE_ID = 2; // Channel ID
-const int THIS_SLAVE_ID = 4; // Header ID - Change for each slave
+const int THIS_SLAVE_ID = 2; // Header ID - Change for each slave
 // LED Pins
-const int GREEN_LED_PIN = 8;
-const int RED_LED_PIN = 9;
-const int YELLOW_LED_PIN = 10;
+const int GREEN_LED_PIN = 28;
+const int RED_LED_PIN = 24;
+const int YELLOW_LED_PIN = 26;
 // Servo Pins
 const int leftServoPin = 4;
 const int rightServoPin = 5;
+const int spatulaPin = 6;
 // QTI Pin
 const int qtiPin = 52;
 // IDs
@@ -30,12 +31,16 @@ bool kill = false;
 /* Servo Stuff*/
 Servo right_servo;
 Servo left_servo;
+Servo spatula_servo;
 
 int rMotVal;
 int lMotVal;
 int temprMotVal;
 int templMotVal;
 int numDropped = 0;
+int spatulaVal;
+
+bool carrying = false;
 
 /* IR Stuff */
 const int IR_SENSE_PIN = 2;
@@ -70,6 +75,7 @@ void setup() {
 
   right_servo.attach(rightServoPin);
   left_servo.attach(leftServoPin);
+  spatula_servo.attach(spatulaPin);
   Serial.begin(9600);
   Serial.setTimeout(10);
   Serial1.begin(9600);
@@ -102,13 +108,17 @@ void setup() {
 void loop() {
   IRSense();
   IRLEDs();
-  qtiVal = QTIRead(qtiPin);
-  amIDead();
+  if(carrying == false){
+    qtiVal = QTIRead(qtiPin);
+    amIDead();
+  }
   if (Serial1.available() && kill == false) {     
     getInptID();
     if (inpt_ID == THIS_SLAVE_ID){
       getMotorVals();
       writeMotorVals();
+      isCarrying();
+      moveSpatula();
       printMotorVals();
     }
   }
@@ -125,9 +135,37 @@ void getInptID(){ // Gets the ID from the message header
 }
 
 void getMotorVals(){ // Gets motor values from message
-   temprMotVal = parse_string_to_int(inpt_char, "R");
-   templMotVal = parse_string_to_int(inpt_char, "L");
-   validMes();
+   if(is_tag_available(inpt_char, "R") == true && is_tag_available(inpt_char, "L") == true){
+    temprMotVal = parse_string_to_int(inpt_char, "R");
+    templMotVal = parse_string_to_int(inpt_char, "L");
+    validMes();
+   }
+}
+
+void isCarrying(){
+  if(is_tag_available(inpt_char, "C") == true){
+    carrying = parse_string_to_int(inpt_char, "C");
+    Serial.println("Carrying Mode On");
+  }
+}
+
+void moveSpatula(){
+  if(is_tag_available(inpt_char, "S") == true){
+    spatulaVal = parse_string_to_int(inpt_char, "S");
+    switch(spatulaVal){
+      case 1:
+        spatula_servo.write(95);
+        Serial.println("Moving Spatula Up");
+        break;
+      case 2:
+        spatula_servo.write(85);
+        Serial.println("Moving Spatula Down");
+        break;
+      // default:
+      // spatula_servo.write(90);
+      // break;
+    }
+  }
 }
 
 void writeMotorVals(){
@@ -191,8 +229,8 @@ void IRSense(){
   }
 }
 
-IRLEDs(){
-  if (IR_sense == True && freq_sense == True){
+void IRLEDs(){
+  if (IR_sense == true && freq_sense == true){
     digitalWrite(GREEN_LED_PIN, HIGH);
     digitalWrite(YELLOW_LED_PIN, LOW);
   }
