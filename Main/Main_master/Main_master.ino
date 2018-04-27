@@ -5,8 +5,8 @@
 #include "communications.h"
 
 // Button Read Pins (Digital)
-int upPin = 9;
-int downPin = 8;
+int upPin = 8;
+int downPin = 9;
 int rightPin = 6;
 int leftPin = 7;
 
@@ -25,13 +25,21 @@ int SLAVE_ID = IDs[slaveIndex];
 const int redPin = 51;
 const int yellowPin = 50;
 const int greenPin = 52;
-const int detectPin = 53;
+const int detectIRPin = 53; //Not in use
 
 // Button State Boolean Values
 bool up = false;
 bool down = false;
 bool left = false;
 bool right = false;
+// Carrying Mode
+const int carryPin = 5;
+bool carrying = false;
+
+// Spatula Pins
+const int spatulaUpPin = 11;
+const int spatulaDownPin = 12;
+int spatula_state = 0; //1 = Up, 2 = Down, 0 = None
 
 // Servo Values
 int rightServo;
@@ -74,7 +82,7 @@ void setup() {
   pinMode(redPin, OUTPUT);
   pinMode(yellowPin, OUTPUT);
   pinMode(greenPin, OUTPUT);
-  pinMode(detectPin, OUTPUT);
+  pinMode(detectIRPin, OUTPUT);
   robotLEDs();
 }
 
@@ -82,7 +90,39 @@ void loop() {
   getButtonValues();
   calcMotorValues();
   sendMotorValues();
+  moveSpatula();
   cycleSlave();
+  isCarrying();
+}
+
+void isCarrying(){
+  if(digitalRead(carryPin)==HIGH){
+    carrying = true;
+    strcpy(send_array, "");
+    for (int i=0; i<3; i++){
+      add_int_to_string(send_array, IDs[i], "M", false);
+      add_int_to_string(send_array, carrying , "C", true);
+      Serial.println(send_array);
+      Serial1.println(send_array);
+    }
+  }
+}
+
+void moveSpatula(){
+  if(digitalRead(spatulaUpPin)==HIGH){
+    spatula_state = 1;
+  }
+  else if(digitalRead(spatulaDownPin)==HIGH){
+    spatula_state = 2;
+  }
+  else{
+    spatula_state = 0;
+  }
+  strcpy(send_array, "");
+  add_int_to_string(send_array, SLAVE_ID, "M", false);
+  add_int_to_string(send_array, spatula_state, "S", true);
+  Serial.println(send_array);
+  Serial1.println(send_array);
 }
 
 void getButtonValues() {
@@ -197,12 +237,12 @@ void getIRData(){
     if (inpt_IR[0] == 2 || inpt_IR[1] == 2 || inpt_IR[2] == 2) {
 //      String disp = "   Slave " + String(inpt_ID) + " found correct signal";
 //      Serial.println(disp);
-      digitalWrite(detectPin, HIGH);
+      digitalWrite(detectIRPin, HIGH);
     }
     else { 
 //      String disp = "   Slave " + String(inpt_ID) + " found nothing";
 //      Serial.println(disp);
-      digitalWrite(detectPin, LOW);
+      digitalWrite(detectIRPin, LOW);
     }
     Serial1.println(inpt);
     Serial.flush();
