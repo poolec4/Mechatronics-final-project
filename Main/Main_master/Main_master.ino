@@ -50,6 +50,7 @@ String inpt;
 char inpt_char[100];
 int inpt_ID;
 int inpt_IR[3];
+int inpt_switch[3];
 String out_ID;
 char out_ID_chr[100];
 char send_array[100];
@@ -87,16 +88,37 @@ void setup() {
 }
 
 void loop() {
-  getButtonValues();
-  calcMotorValues();
-  sendMotorValues();
-  moveSpatula();
-  cycleSlave();
-  isCarrying();
+  if(carrying == false){
+    getButtonValues();
+    calcMotorValues();
+    sendMotorValues();
+    moveSpatula();
+    cycleSlave();
+    isCarrying(); 
+  }
+  else{
+    getButtonValues();
+    int button_ID = SLAVE_ID;
+    for(int i=2; i<=4; i++){
+       if (i == button_ID && inpt_switch[i-2] == 1){
+          calcMotorValues();
+          sendMotorValues();
+       }
+       else if (inpt_switch[i-2] == 1){
+          SLAVE_ID = i;
+          calcMotorValues();
+          leftServo = -0.9*(leftServo-90)+90;
+          rightServo = -0.9*(rightServo-90)+90;
+          sendMotorValues();
+          SLAVE_ID = button_ID;
+       }
+    }
+    moveSpatula();
+  }
 }
 
 void isCarrying(){
-  if(digitalRead(carryPin)==HIGH){
+  if(inpt_switch[0] + inpt_switch[1] + inpt_switch[2] >= 2){
     carrying = true;
     strcpy(send_array, "");
     for (int i=0; i<3; i++){
@@ -247,6 +269,18 @@ void getIRData(){
     Serial1.println(inpt);
     Serial.flush();
     Serial1.flush();
+  }
+}
+
+void getSwitchData(){
+  if (Serial1.available() > 0) {     // XBee
+    inpt = Serial1.readStringUntil('\n');
+    inpt.toCharArray(inpt_char, inpt.length() + 1);
+    inpt_ID = parse_string_to_int(inpt_char, "M");
+    inpt_switch[inpt_ID - IDs[0]] = parse_string_to_int(inpt_char, "B");
+    if (inpt_switch[inpt_ID - IDs[0]] == 1){
+      Serial.println("Robot found box");
+    }
   }
 }
 
