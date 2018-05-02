@@ -43,15 +43,23 @@ int spatulaVal;
 bool carrying = false;
 
 /* IR Stuff */
-const int IR_SENSE_PIN = 2;
-boolean IR_sense = true;
-boolean freq_sense = true;
-const int num_samples = 5;
+const int FRONT_IR_PIN = 2;
+const int RIGHT_IR_PIN = 20;
+const int LEFT_IR_PIN = 21;
+const int num_samples = 10;
 const int IR_SENSE_DELAY = 250;
 int count = 0;
 unsigned long t_change, t_old, t_delay;
 float f[num_samples], f_median;
-volatile byte IR_state_change = false;
+volatile byte front_IR_state_change = false;
+volatile byte right_IR_state_change = false;
+volatile byte left_IR_state_change = false;
+boolean front_IR_sense = true;
+boolean front_freq_sense = true;
+boolean right_IR_sense = true;
+boolean right_freq_sense = true;
+boolean left_IR_sense = true;
+boolean left_freq_sense = true;
 
 int IR_state = 1;  // 0 = nothing, 1 = ir but wrong freq, 2 = right freq
 
@@ -65,10 +73,24 @@ const unsigned long SEND_DELAY = 500;
 
 char send_array[100];
 
+int SWITCH_PIN = 44;
+
+struct ir_vals{
+  bool IR_sense = false;
+  bool freq_sense = false;
+};
+
+struct ir_vals front_ir_vals;
+struct ir_vals left_ir_vals;
+struct ir_vals right_ir_vals;
+
+
 void setup() {
   t_change = millis();
   t_old = millis();
-  attachInterrupt(digitalPinToInterrupt(2), irStateChange, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(FRONT_IR_PIN), irStateChangeFront, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(RIGHT_IR_PIN), irStateChangeLeft, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(LEFT_IR_PIN), irStateChangeRight, CHANGE);
   pinMode(GREEN_LED_PIN, OUTPUT);
   pinMode(RED_LED_PIN, OUTPUT);
   pinMode(YELLOW_LED_PIN, OUTPUT);
@@ -106,12 +128,20 @@ void setup() {
 }
 
 void loop() {
-  IRSense();
-  IRLEDs();
+  front_ir_vals = IRSense(front_ir_vals, front_IR_state_change);
+  //left_ir_vals = IRSense(left_ir_vals, left_IR_state_change); 
+  //right_ir_vals = IRSense(right_ir_vals, right_IR_state_change);
+  Serial.println("Front IR Values");
+  Serial.print("IRSense: ");
+  Serial.println(front_ir_vals.IR_sense);
+  Serial.print("Freq_sense: ");
+  Serial.println(front_ir_vals.freq_sense);
+  IRLEDs(front_ir_vals.IR_sense, front_ir_vals.freq_sense);
   if(carrying == false){
     qtiVal = QTIRead(qtiPin);
     amIDead();
   }
+  foundBox();
   if (Serial1.available() && kill == false) {     
     getInptID();
     if (inpt_ID == THIS_SLAVE_ID){
@@ -126,6 +156,7 @@ void loop() {
   // IRRec();
   Serial1.flush();
   Serial.flush();
+  //delay(100);
 }
 
 void getInptID(){ // Gets the ID from the message header
@@ -207,29 +238,30 @@ void amIDead(){
   }
 }
 
-void IRSense(){
-  if(IR_state_change == true)
-  {
+struct ir_vals  IRSense(struct ir_vals bools, bool IR_state_change){
+  if(IR_state_change == true){
     calculateFreq();
     Serial.println(f_median);
   }
-
   if(f_median > 8.0 && f_median < 12.0){
-    IR_sense = true;
-    freq_sense = true;
+    bools.IR_sense = true;
+    bools.freq_sense = true;
+    Serial.println("True Signal Detected");
   }
   else if(f_median < 8.0 || f_median > 12.0){
-    IR_sense = true;
-    freq_sense = false;
+    bools.IR_sense = true;
+    bools.freq_sense = false;
   }
 
   if(millis()-t_change > IR_SENSE_DELAY){ // timeout if signal hasn't been seen for a while
-    IR_sense = false;
-    freq_sense = false;
+    bools.IR_sense = false;
+    bools.freq_sense = false;
+    Serial.println("TIMEOUT");
   }
+  return bools;
 }
 
-void IRLEDs(){
+void IRLEDs(bool IR_sense, bool freq_sense){
   if (IR_sense == true && freq_sense == true){
     digitalWrite(GREEN_LED_PIN, HIGH);
     digitalWrite(YELLOW_LED_PIN, LOW);
@@ -240,7 +272,7 @@ void IRLEDs(){
   }
 }
 
-void IRTransmit(){
+/*void IRTransmit(){
   if (IR_sense == false && freq_sense == false) { // no signal
     IR_state = 0;
     digitalWrite(GREEN_LED_PIN, LOW);
@@ -266,7 +298,7 @@ void IRTransmit(){
     Serial1.print(send_array);
     t_sent = millis();
   }
-}
+}*/
 
 void IRRec(){
   if (Serial1.available()) {     
@@ -292,10 +324,21 @@ void IRRec(){
   }
 }
 
-void irStateChange()
-{
+void irStateChangeFront() {
   t_change = millis();
-  IR_state_change = true;
+  //Serial.print("t_change: ");
+  //Serial.println(t_change);
+  front_IR_state_change = true;
+}
+
+void irStateChangeLeft(){
+  t_change = millis();
+  left_IR_state_change = true;
+}
+
+void irStateChangeRight(){
+  t_change = millis();
+  right_IR_state_change = true; 
 }
 
 void sortFreq() {
@@ -315,7 +358,7 @@ void calculateFreq() {
   f[count] = (float)1.0/(t_delay/1000.0*2.0);
   count++;
   t_old = t_change;
-  IR_state_change = false;
+  front_IR_state_change = false;
 
   if(count >= num_samples){  
     sortFreq();
@@ -327,6 +370,16 @@ void calculateFreq() {
       f_median = f[(int)floor((float)num_samples/2.0)];  
     }
     count = 0; 
+  }
+}
+
+void foundBox(){
+  if (digitalRead(SWITCH_PIN) == HIGH){
+    strcpy(send_array, "");
+    add_int_to_string(send_array, THIS_SLAVE_ID, "M", false);
+    add_int_to_string(send_array, 1, "B", true);
+    Serial1.println(send_array); 
+    Serial.println("Found Box");
   }
 }
 

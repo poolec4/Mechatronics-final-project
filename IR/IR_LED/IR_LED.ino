@@ -3,7 +3,7 @@ double T = 1.0/f;
 unsigned long t_old;
 boolean b = false;
 
-const int IR_LED_PIN = 7;
+const int IR_LED_PIN = 3;
 
 void setup() {
   Serial.begin(9600);
