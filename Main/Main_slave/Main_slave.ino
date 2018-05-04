@@ -4,13 +4,15 @@
 
 Servo right_servo;
 Servo left_servo;
-Servo spatula_servo;
+Servo left_spatula_servo;
+Servo right_spatula_servo;
 
-const int THIS_SLAVE_ID = 3; // Header ID - Change for each slave
+const int THIS_SLAVE_ID = 4; // Header ID - Change for each slave
 
 const int rightServoPin = 5;
 const int leftServoPin = 4;
-const int spatulaServoPin = 6;
+const int leftSpatulaServoPin = 6;
+const int rightSpatulaServoPin = 7;
 
 int input_ID;
 int rMotVal = 90;
@@ -69,7 +71,8 @@ void setup() {
 
   right_servo.attach(rightServoPin);
   left_servo.attach(leftServoPin);
-  spatula_servo.attach(spatulaServoPin);
+  left_spatula_servo.attach(leftSpatulaServoPin);
+  right_spatula_servo.attach(rightSpatulaServoPin);
   
   pinMode(GREEN_LED_PIN, OUTPUT);
   pinMode(RED_LED_PIN, OUTPUT);
@@ -120,12 +123,12 @@ void loop() {
   if(kill){
     rMotVal = 90;
     lMotVal = 90;
-    spatulaVal = 90;
   }
   
   right_servo.write(rMotVal);
   left_servo.write(lMotVal);
-  spatula_servo.write(spatulaVal);
+  left_spatula_servo.write(spatulaVal);
+  right_spatula_servo.write(-spatulaVal+180);
 }
 
 void amIDead(){
