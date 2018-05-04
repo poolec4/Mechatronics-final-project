@@ -10,6 +10,7 @@ const int rightPin = 6;
 const int leftPin = 7;
 const int cyclePin = 10;
 const int spatulaPin = A0;
+const int carryPin = 5;
 
 unsigned long lastDebounceTime = 0;  // the last time the output pin was toggled
 unsigned long debounceDelay = 250;    // the debounce time; increase if the output flickers
@@ -20,6 +21,16 @@ int spatula_val = 90;
 
 char send_array[100];
 
+/* Operational Modes */
+bool autonomous = false; //not using yet
+bool manual = true;
+bool carry = false;
+
+/* Read Values */
+String inpt;
+char inpt_char[100];
+int inpt_switch[3] = {0, 0, 0};
+
 void setup() {
   Serial.begin(57600);
   Serial1.begin(57600);
@@ -28,6 +39,8 @@ void setup() {
     pinMode(ID_LEDs[i], OUTPUT);
   } 
   digitalWrite(ID_LEDs[slave_index], HIGH);
+
+  Serial.println("The board reset...");
 }
 
 void loop() {
@@ -83,13 +96,67 @@ void loop() {
     }
   }
 
-  strcpy(send_array, "");
-  add_int_to_string(send_array, SLAVE_ID, "M", false);
-  add_int_to_string(send_array, left_motor_val, "L", false);
-  add_int_to_string(send_array, right_motor_val, "R", false);
-  add_int_to_string(send_array, spatula_val, "S", true);
-  Serial.println(send_array);
-  Serial1.print(send_array);
+  /* Check for Carry Mode */
+  if (digitalRead(carryPin) == HIGH){
+    if(carry == false){
+      Serial.println("Setting Manual to False");
+      //delay(1000);
+      manual = false;
+      carry = true;
+      strcpy(send_array, "");
+      add_int_to_string(send_array, SLAVE_ID, "M", false);
+      add_int_to_string(send_array, carry, "C", true);
+      Serial.println(send_array);
+      Serial1.print(send_array);
+    }
+  }
+  Serial.println(carry);
+  /* Send Message */
+  if(!carry){
+    Serial.println("Only Sending to One");
+    strcpy(send_array, "");
+    add_int_to_string(send_array, SLAVE_ID, "M", false);
+    add_int_to_string(send_array, left_motor_val, "L", false);
+    add_int_to_string(send_array, right_motor_val, "R", false);
+    add_int_to_string(send_array, spatula_val, "S", true);
+    Serial.println(send_array);
+    Serial1.print(send_array);
+  }
+  else{
+    int count = 0;
+    for (int i=0; i<3; i++){
+      Serial.print("Switch Value: ");
+      Serial.println(inpt_switch[i]);
+      if(inpt_switch[i] == 1){
+        count++;
+      }
+      if(count > 1){
+         left_motor_val = int(-0.95*(left_motor_val-90.0)+90);
+         right_motor_val = int(-0.95*(right_motor_val-90.0)+90);
+      }
+      if(inpt_switch[i] == 1){
+        strcpy(send_array, "");
+        add_int_to_string(send_array, IDs[i], "M", false);
+        add_int_to_string(send_array, left_motor_val, "L", false);
+        add_int_to_string(send_array, right_motor_val, "R", false);
+        add_int_to_string(send_array, spatula_val, "S", true);
+        Serial.println(send_array);
+        Serial1.print(send_array);
+      }
+    }
+  }
 
-  delay(50);
+  /* Check for incoming signal */
+  if (Serial1.available()){
+    strcpy(inpt_char, "");
+    inpt = Serial1.readStringUntil('\n');
+    inpt.toCharArray(inpt_char, inpt.length()+1);
+    int input_ID = parse_string_to_int(inpt_char, "M"); 
+    if(is_tag_available(inpt_char, "B")){
+      inpt_switch[input_ID - IDs[0]] = parse_string_to_int(inpt_char, "B");
+      Serial.println("Switch Hit");
+    }
+  }
+
+  delay(500);
 }

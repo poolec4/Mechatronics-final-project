@@ -7,7 +7,7 @@ Servo left_servo;
 Servo left_spatula_servo;
 Servo right_spatula_servo;
 
-const int THIS_SLAVE_ID = 4; // Header ID - Change for each slave
+const int THIS_SLAVE_ID = 2; // Header ID - Change for each slave
 
 const int rightServoPin = 5;
 const int leftServoPin = 4;
@@ -35,6 +35,7 @@ int serial_count = 0;
 String inpt;
 char inpt_char[100];
 bool read_serial = true;
+char send_array[100];
 
 /* IR Stuff */
 struct ir_vals{
@@ -63,6 +64,15 @@ boolean right_IR_sense = true;
 boolean right_freq_sense = true;
 boolean left_IR_sense = true;
 boolean left_freq_sense = true;
+
+/* Operational Modes */
+bool autonomous = false; //not using yet
+bool manual = true;
+bool carry = false;
+bool temp_check = false; // In place for autonomous mode
+/* Switches */
+const int SWITCH_PIN = 44;
+bool switch_val = false;
 
 void setup() {
   Serial.begin(57600);
@@ -94,7 +104,7 @@ void loop() {
       input_ID = parse_string_to_int(inpt_char, "M"); 
     }
     
-    // Stuff to set only if it matches the slave ID
+    /* Stuff to set only if it matches the slave ID */
     
     if(input_ID == THIS_SLAVE_ID){
       if(is_tag_available(inpt_char, "R")){
@@ -105,15 +115,32 @@ void loop() {
       }
     }
 
-    // Stuff to set regardless of slave ID
-    
+    /* Stuff to set regardless of slave ID */
+    // Get Spatula Value
     if(is_tag_available(inpt_char, "S")){
       spatulaVal = parse_string_to_int(inpt_char, "S");
     }
-    
+    // Check is master is in carry mode
+    if(is_tag_available(inpt_char, "C")){
+      int carry_val = parse_string_to_int(inpt_char, "C");
+      carry = bool(carry_val);
+      manual = !carry;
+      }
     Serial.println(inpt);
   }
-
+  //Check if switch is pressed
+  if(digitalRead(SWITCH_PIN) == HIGH){
+    if(temp_check == false){
+      temp_check = true;
+      manual = true;
+      strcpy(send_array, "");
+      add_int_to_string(send_array, THIS_SLAVE_ID, "M", false);
+      add_int_to_string(send_array, manual, "B", true);
+      Serial.println(send_array);
+      Serial.println("Read Switch");
+      Serial1.print(send_array);
+    }
+  } 
   front_ir_vals = IRSense(front_ir_vals, front_IR_state_change);
   IRLEDs(front_ir_vals.IR_sense, front_ir_vals.freq_sense);
 
