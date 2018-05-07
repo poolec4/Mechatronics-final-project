@@ -24,6 +24,7 @@ int qtiVal = 0;
 int qtiThresh = 400;
 bool kill = false;
 const int qtiPin = 52;
+const int frontQtiPin = 53;
 
 /* LED Stuff */
 const int GREEN_LED_PIN = 28;
@@ -38,9 +39,17 @@ bool read_serial = true;
 char send_array[100];
 
 /* IR Stuff */
+const int num_samples = 10;
+
 struct ir_vals{
+  volatile byte state_change = false;
   bool IR_sense = false;
   bool freq_sense = false;
+  int count = 0;
+  float f[num_samples] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
+  float f_median;
+  unsigned long t_old = millis();
+  unsigned long t_new;
 };
 
 struct ir_vals front_ir_vals;
@@ -50,26 +59,36 @@ struct ir_vals right_ir_vals;
 const int FRONT_IR_PIN = 2;
 const int RIGHT_IR_PIN = 20;
 const int LEFT_IR_PIN = 21;
-const int num_samples = 10;
 const int IR_SENSE_DELAY = 250;
 int count = 0;
-unsigned long t_change, t_old, t_delay;
-float f[num_samples], f_median;
-volatile byte front_IR_state_change = false;
+/*unsigned long t_change_front;
+unsigned long t_change_right;
+unsigned long t_change_left;*/
+/*volatile byte front_IR_state_change = false;
 volatile byte right_IR_state_change = false;
-volatile byte left_IR_state_change = false;
-boolean front_IR_sense = true;
-boolean front_freq_sense = true;
-boolean right_IR_sense = true;
-boolean right_freq_sense = true;
-boolean left_IR_sense = true;
-boolean left_freq_sense = true;
+volatile byte left_IR_state_change = false;*/
+/*boolean front_IR_sense = false;
+boolean front_freq_sense = false;
+boolean right_IR_sense = false;
+boolean right_freq_sense = false;
+boolean left_IR_sense = false;
+boolean left_freq_sense = false;*/
+
+unsigned long front_t_old = millis();
+unsigned long front_t_new;
 
 /* Operational Modes */
-bool autonomous = false; //not using yet
-bool manual = true;
+bool autonomous = true; //not using yet
+bool manual = false;
 bool carry = false;
 bool temp_check = false; // In place for autonomous mode
+bool navigating = false;
+unsigned long no_detect_time = millis();
+int no_detect_timeout = 500;
+unsigned long random_action_time = millis();
+int random_action_timeout = random(1000);
+int random_action = 0;
+unsigned long temp_time;
 /* Switches */
 const int SWITCH_PIN = 44;
 bool switch_val = false;
@@ -89,12 +108,27 @@ void setup() {
   pinMode(YELLOW_LED_PIN, OUTPUT);
 
   attachInterrupt(digitalPinToInterrupt(FRONT_IR_PIN), irStateChangeFront, CHANGE);
+  //attachInterrupt(digitalPinToInterrupt(RIGHT_IR_PIN), irStateChangeRight, CHANGE);
+  //attachInterrupt(digitalPinToInterrupt(LEFT_IR_PIN), irStateChangeLeft, CHANGE);
+
+  digitalWrite(RED_LED_PIN, HIGH);
+  delay(500);
+  digitalWrite(RED_LED_PIN, LOW);
+  digitalWrite(YELLOW_LED_PIN, HIGH);
+  delay(500);
+  digitalWrite(YELLOW_LED_PIN, LOW);
+  digitalWrite(GREEN_LED_PIN, HIGH);
+  delay(500);
+  digitalWrite(GREEN_LED_PIN, LOW);
 }
 
 void loop() {
-  
+  /* Drive Autonomously */
+  if (autonomous == true){
+    butWhosDriving();
+  }
   /* Receive values from XBee */
-  if (Serial1.available()) {    
+  if (Serial1.available() && autonomous == false) {    
     strcpy(inpt_char, "");
     inpt = Serial1.readStringUntil('\n');
     //Serial1.read(); // get rid of new line
@@ -106,7 +140,7 @@ void loop() {
     
     /* Stuff to set only if it matches the slave ID */
     
-    if(input_ID == THIS_SLAVE_ID){
+    if(input_ID == THIS_SLAVE_ID && manual == true){
       if(is_tag_available(inpt_char, "R")){
         rMotVal = parse_string_to_int(inpt_char, "R");
       }
@@ -132,6 +166,7 @@ void loop() {
   if(digitalRead(SWITCH_PIN) == HIGH){
     if(temp_check == false){
       temp_check = true;
+      autonomous = false;
       manual = true;
       strcpy(send_array, "");
       add_int_to_string(send_array, THIS_SLAVE_ID, "M", false);
@@ -140,8 +175,11 @@ void loop() {
       Serial.println("Read Switch");
       Serial1.print(send_array);
     }
-  } 
-  front_ir_vals = IRSense(front_ir_vals, front_IR_state_change);
+  }
+  front_ir_vals.t_new = temp_time;
+  front_ir_vals = IRSense(front_ir_vals);
+  //right_ir_vals = IRSense(right_ir_vals);
+  //left_ir_vals = IRSense(left_ir_vals);
   IRLEDs(front_ir_vals.IR_sense, front_ir_vals.freq_sense);
 
   qtiVal = QTIRead(qtiPin);
@@ -169,31 +207,42 @@ void amIDead(){
 }
 
 void irStateChangeFront() {
-  t_change = millis();
-  front_IR_state_change = true;
+  temp_time = millis();
+  // front_ir_vals.t_new = millis();
+  front_ir_vals.state_change = true;
+  Serial.println(front_ir_vals.state_change);
 }
 
-struct ir_vals  IRSense(struct ir_vals bools, bool IR_state_change){
-  if(IR_state_change == true){
-    calculateFreq();
-    //Serial.println(f_median);
+void irStateChangeRight() {
+  temp_time = millis();
+  right_ir_vals.state_change = true;
+}
+
+void irStateChangeLeft() {
+  temp_time = millis();
+  left_ir_vals.state_change = true;
+}
+
+struct ir_vals IRSense(struct ir_vals vals){
+  if(vals.state_change == true){
+    vals = calculateFreq(vals);
+    Serial.print("Median Frequency: ");
+    Serial.println(vals.f_median);
   }
-  if(f_median > 8.0 && f_median < 12.0){
-    bools.IR_sense = true;
-    bools.freq_sense = true;
-    Serial.println("True Signal Detected");
+  if(vals.f_median > 8.0 && vals.f_median < 12.0){
+    vals.IR_sense = true;
+    vals.freq_sense = true;
   }
-  else if(f_median < 8.0 || f_median > 12.0){
-    bools.IR_sense = true;
-    bools.freq_sense = false;
+  else if(vals.f_median < 8.0 || vals.f_median > 12.0){
+    vals.IR_sense = true;
+    vals.freq_sense = false;
   }
 
-  if(millis()-t_change > IR_SENSE_DELAY){ // timeout if signal hasn't been seen for a while
-    bools.IR_sense = false;
-    bools.freq_sense = false;
-    //Serial.println("TIMEOUT");
+  if(millis()-vals.t_new > IR_SENSE_DELAY){ // timeout if signal hasn't been seen for a while
+    vals.IR_sense = false;
+    vals.freq_sense = false;
   }
-  return bools;
+  return vals;
 }
 
 void IRLEDs(bool IR_sense, bool freq_sense){
@@ -207,34 +256,102 @@ void IRLEDs(bool IR_sense, bool freq_sense){
   }
 }
 
-void sortFreq() {
+struct ir_vals sortFreq(struct ir_vals vals) {
   for (int i = 1; i < num_samples; i++){
-       float key = f[i];
+       float key = vals.f[i];
        int j = i-1;
-       while (j >= 0 && f[j] > key){
-           f[j+1] = f[j];
+       while (j >= 0 && vals.f[j] > key){
+           vals.f[j+1] = vals.f[j];
            j = j-1;
        }
-       f[j+1] = key;
+       vals.f[j+1] = key;
    }
+  return vals;
 }
 
-void calculateFreq() {
-  t_delay = t_change-t_old;
-  f[count] = (float)1.0/(t_delay/1000.0*2.0);
-  count++;
-  t_old = t_change;
-  front_IR_state_change = false;
+struct ir_vals calculateFreq(struct ir_vals vals) {
+  unsigned long t_delay = vals.t_new - vals.t_old;
+  Serial.println(t_delay);
+  vals.f[vals.count] = (float)1.0/(t_delay/1000.0*2.0);
+  vals.count++;
+  unsigned long temp = vals.t_new;
+  Serial.println(temp);
+  Serial.println(temp_time);
+  vals.t_old = temp;
 
-  if(count >= num_samples){  
-    sortFreq();
-    
+  if(vals.count >= num_samples){  
+    vals = sortFreq(vals);
+    Serial.println("Frequencies");
+    for(int i=0; i<num_samples; i++){
+      Serial.print(vals.f[i]);
+      Serial.print(' ');
+    }
     if(num_samples%2 == 0){  
-      f_median = (f[(int)floor((float)num_samples/2.0)]+f[(int)ceil((float)num_samples/2.0)])/2.0;
+      vals.f_median = (vals.f[(int)floor((float)num_samples/2.0)]+vals.f[(int)ceil((float)num_samples/2.0)])/2.0;
     }
     else{
-      f_median = f[(int)floor((float)num_samples/2.0)];  
+      vals.f_median = vals.f[(int)floor((float)num_samples/2.0)];  
     }
-    count = 0; 
+    vals.count = 0; 
+  }
+  return vals;
+}
+
+void butWhosDriving(){
+  if (front_ir_vals.IR_sense == true && front_ir_vals.freq_sense == true){
+    Serial.println("Found IR Signal in Front");
+    rMotVal = 180;
+    lMotVal = 0;
+    no_detect_time = millis();
+    navigating = true;
+  }
+  else if (right_ir_vals.IR_sense == true && right_ir_vals.freq_sense == true){
+    Serial.println("Found IR Signal on Right");
+    rMotVal = 180;
+    lMotVal = 180;
+    no_detect_time = millis();
+    navigating = true;
+  }
+  else if (left_ir_vals.IR_sense == true && left_ir_vals.freq_sense == true){
+    Serial.println("Found IR Signal on Left");
+    rMotVal = 0;
+    lMotVal = 0;
+    no_detect_time = millis();
+    navigating = true;
+  }
+  else{
+    if(navigating == false || millis()-no_detect_time >= no_detect_timeout){
+      navigating = false;
+      randomSearch();
+    }
   }
 }
+
+void randomSearch(){
+  if(millis()-random_action_time >= random_action_timeout){
+    Serial.println("Selecting Random Action");
+    random_action_time = millis();
+    random_action = random(3);
+    Serial.println(random_action);
+    switch(random_action){
+    case 0: //forward
+      Serial.println("Driving Forward");
+      rMotVal = 100;
+      lMotVal = 80;
+      random_action_timeout = random(1000, 2000);
+      break;
+    case 1: //right
+      Serial.println("Turning Right");
+      rMotVal = 92;
+      lMotVal = 92;
+      random_action_timeout = random(750, 1000);
+      break;
+    case 2: //left
+      Serial.println("Turning Left");
+      rMotVal = 88;
+      lMotVal = 88;
+      random_action_timeout = random(750, 1000);
+    }    
+  }
+}
+

@@ -1,4 +1,4 @@
-#define SENSE_PIN 2
+#define SENSE_PIN 20
 
 void setup() {
   Serial.begin(9600);
