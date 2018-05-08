@@ -66,10 +66,16 @@ boolean left_IR_sense = true;
 boolean left_freq_sense = true;
 
 /* Operational Modes */
-bool autonomous = false; //not using yet
-bool manual = true;
+bool autonomous = true; //not using yet
+bool manual = false;
 bool carry = false;
-bool temp_check = false; // In place for autonomous mode
+bool init_switch_hit = false; // checks if switch was just hit
+bool navigating = false;
+unsigned long no_detect_time = millis();
+int no_detect_timeout = 500;
+unsigned long random_action_time = millis();
+int random_action_timeout = random(1000);
+int random_action = 0;
 /* Switches */
 const int SWITCH_PIN = 44;
 bool switch_val = false;
@@ -92,9 +98,11 @@ void setup() {
 }
 
 void loop() {
-  
+  if (autonomous == true){
+    butWhosDriving();
+  }
   /* Receive values from XBee */
-  if (Serial1.available()) {    
+  if (Serial1.available() && autonomous == false) {      
     strcpy(inpt_char, "");
     inpt = Serial1.readStringUntil('\n');
     //Serial1.read(); // get rid of new line
@@ -106,7 +114,7 @@ void loop() {
     
     /* Stuff to set only if it matches the slave ID */
     
-    if(input_ID == THIS_SLAVE_ID){
+    if(input_ID == THIS_SLAVE_ID && manual == true){
       if(is_tag_available(inpt_char, "R")){
         rMotVal = parse_string_to_int(inpt_char, "R");
       }
@@ -130,8 +138,9 @@ void loop() {
   }
   //Check if switch is pressed
   if(digitalRead(SWITCH_PIN) == HIGH){
-    if(temp_check == false){
-      temp_check = true;
+    if(init_switch_hit == false){
+      init_switch_hit = true;
+      autonomous = false;
       manual = true;
       strcpy(send_array, "");
       add_int_to_string(send_array, THIS_SLAVE_ID, "M", false);
@@ -169,6 +178,11 @@ void amIDead(){
 }
 
 void irStateChangeFront() {
+  if(!front_ir_vals.IR_sense){
+    random_action_time = millis();
+    right_servo.write(90);
+    left_servo.write(90);
+  }
   t_change = millis();
   front_IR_state_change = true;
 }
@@ -238,3 +252,62 @@ void calculateFreq() {
     count = 0; 
   }
 }
+
+void butWhosDriving(){
+  if (front_ir_vals.IR_sense == true && front_ir_vals.freq_sense == true){
+    Serial.println("Found IR Signal in Front");
+    rMotVal = 180;
+    lMotVal = 0;
+    no_detect_time = millis();
+    navigating = true;
+  }
+  else if (right_ir_vals.IR_sense == true && right_ir_vals.freq_sense == true){
+    Serial.println("Found IR Signal on Right");
+    rMotVal = 180;
+    lMotVal = 180;
+    no_detect_time = millis();
+    navigating = true;
+  }
+  else if (left_ir_vals.IR_sense == true && left_ir_vals.freq_sense == true){
+    Serial.println("Found IR Signal on Left");
+    rMotVal = 0;
+    lMotVal = 0;
+    no_detect_time = millis();
+    navigating = true;
+  }
+  else{
+    if(navigating == false || millis()-no_detect_time >= no_detect_timeout){
+      navigating = false;
+      randomSearch();
+    }
+  }
+}
+
+void randomSearch(){
+  if(millis()-random_action_time >= random_action_timeout){
+    Serial.println("Selecting Random Action");
+    random_action_time = millis();
+    random_action = random(3);
+    Serial.println(random_action);
+    switch(random_action){
+    case 0: //forward
+      Serial.println("Driving Forward");
+      rMotVal = 100;
+      lMotVal = 80;
+      random_action_timeout = random(1000, 2000);
+      break;
+    case 1: //right
+      Serial.println("Turning Right");
+      rMotVal = 92;
+      lMotVal = 92;
+      random_action_timeout = random(1000, 2000);
+      break;
+    case 2: //left
+      Serial.println("Turning Left");
+      rMotVal = 88;
+      lMotVal = 88;
+      random_action_timeout = random(1000, 2000);
+    }    
+  }
+}
+
