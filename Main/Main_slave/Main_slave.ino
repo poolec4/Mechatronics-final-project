@@ -7,7 +7,7 @@ Servo left_servo;
 Servo left_spatula_servo;
 Servo right_spatula_servo;
 
-const int THIS_SLAVE_ID = 2; // Header ID - Change for each slave
+const int THIS_SLAVE_ID = 4; // Header ID - Change for each slave
 
 const int rightServoPin = 5;
 const int leftServoPin = 4;
@@ -22,10 +22,11 @@ int spatulaVal = 90;
 /* QTI Stuff */
 int rear_qti_val = 0;
 int front_qti_val = 0;
-int qti_thresh = 400;
+int rear_qti_thresh = 400;
+int front_qti_thresh = 200;
 bool kill = false;
 const int REAR_QTI_PIN = 52;
-const int FRONT_QTI_PIN = 23;
+const int FRONT_QTI_PIN = 51;
 
 
 /* LED Stuff */
@@ -50,10 +51,10 @@ struct ir_vals front_ir_vals;
 struct ir_vals left_ir_vals;
 struct ir_vals right_ir_vals;
 
-// const int FRONT_IR_PIN = 2;
-const int RIGHT_IR_PIN = 2;
-const int LEFT_IR_PIN = 3;
-const int num_samples = 10;
+const int FRONT_IR_PIN = 2;
+//const int RIGHT_IR_PIN = 2;
+//const int LEFT_IR_PIN = 3;
+const int num_samples = 5;
 const int IR_SENSE_DELAY = 250;
 int count_front = 0;
 int count_right = 0;
@@ -83,7 +84,7 @@ bool carry = false;
 bool init_switch_hit = false; // checks if switch was just hit
 bool navigating = false;
 unsigned long no_detect_time = millis();
-int no_detect_timeout = 500;
+int no_detect_timeout = 250;
 unsigned long random_action_time = millis();
 int random_action_timeout = random(1000);
 int random_action = 0;
@@ -105,9 +106,26 @@ void setup() {
   pinMode(RED_LED_PIN, OUTPUT);
   pinMode(YELLOW_LED_PIN, OUTPUT);
 
-  // attachInterrupt(digitalPinToInterrupt(FRONT_IR_PIN), irStateChangeFront, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(RIGHT_IR_PIN), irStateChangeRight, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(LEFT_IR_PIN), irStateChangeLeft, CHANGE);
+  pinMode(REAR_QTI_PIN, INPUT);
+  pinMode(FRONT_QTI_PIN, INPUT);
+  
+  attachInterrupt(digitalPinToInterrupt(FRONT_IR_PIN), irStateChangeFront, CHANGE);
+  //attachInterrupt(digitalPinToInterrupt(RIGHT_IR_PIN), irStateChangeRight, CHANGE);
+  //attachInterrupt(digitalPinToInterrupt(LEFT_IR_PIN), irStateChangeLeft, CHANGE);
+
+  switch(THIS_SLAVE_ID){
+    case 2:
+      rear_qti_thresh = 400;
+      front_qti_thresh = 200;
+      break;
+
+    case 3:
+
+      break;
+    case 4:
+
+      break;
+  }
 }
 
 void loop() {
@@ -155,6 +173,8 @@ void loop() {
       init_switch_hit = true;
       autonomous = false;
       manual = true;
+      rMotVal = 90;
+      lMotVal = 90;
       strcpy(send_array, "");
       add_int_to_string(send_array, THIS_SLAVE_ID, "M", false);
       add_int_to_string(send_array, manual, "B", true);
@@ -163,17 +183,20 @@ void loop() {
       Serial1.print(send_array);
     }
   } 
-  // front_ir_vals = IRSenseFront(front_ir_vals, front_IR_state_change);
-  right_ir_vals = IRSenseRight(right_ir_vals, right_IR_state_change);
-  left_ir_vals = IRSenseLeft(left_ir_vals, left_IR_state_change);
-  Serial.println("State Change Values");
+  front_ir_vals = IRSenseFront(front_ir_vals, front_IR_state_change);
+  //right_ir_vals = IRSenseRight(right_ir_vals, right_IR_state_change);
+  //left_ir_vals = IRSenseLeft(left_ir_vals, left_IR_state_change);
+  //Serial.println("State Change Values");
   // Serial.println(front_IR_state_change);
-  Serial.println(right_IR_state_change);
-  Serial.println(left_IR_state_change);
+  //Serial.println(right_IR_state_change);
+  //Serial.println(left_IR_state_change);
   IRLEDs(front_ir_vals.IR_sense, front_ir_vals.freq_sense);
 
   rear_qti_val = QTIRead(REAR_QTI_PIN);
-  // front_qti_val = QTIRead(FRONT_QTI_PIN);
+  front_qti_val = QTIRead(FRONT_QTI_PIN);
+  Serial.println("QTI");
+  Serial.println(rear_qti_val);
+  Serial.println(front_qti_val);
   amIDead();
   
   if(kill){
@@ -188,7 +211,7 @@ void loop() {
 }
 
 void amIDead(){
-  if (rear_qti_val >= qti_thresh){
+  if (rear_qti_val >= rear_qti_thresh){
     kill = true;
     digitalWrite(RED_LED_PIN, HIGH);
     right_servo.write(90);
@@ -214,6 +237,7 @@ void irStateChangeRight() {
     right_servo.write(90);
     left_servo.write(90);
   }
+  Serial.println("Right Interrupt");
   t_change_right = millis();
   right_IR_state_change = true;
 }
@@ -224,6 +248,7 @@ void irStateChangeLeft() {
     right_servo.write(90);
     left_servo.write(90);
   }
+  Serial.println("Left Interrupt");
   t_change_left = millis();
   left_IR_state_change = true;
 }
@@ -231,23 +256,27 @@ void irStateChangeLeft() {
 /* IR Sense */
 struct ir_vals  IRSenseFront(struct ir_vals bools, bool IR_state_change){
   if(IR_state_change == true){
-    calculateFreqFront();
-    //Serial.println(f_median);
+    // calculateFreqFront();
+    t_delay_front = t_change_front-t_old_front;
+    f_median_front = (float)1.0/(t_delay_front/1000.0*2.0);
+    t_old_front = t_change_front;
+    front_IR_state_change = false;
+    Serial.println(f_median_front);
   }
   if(f_median_front > 8.0 && f_median_front < 12.0){
     bools.IR_sense = true;
     bools.freq_sense = true;
-    Serial.println("True Signal Detected in Front");
+    //Serial.println("True Signal Detected in Front");
   }
   else if(f_median_front == 0.0){
     bools.IR_sense = false;
     bools.freq_sense = false;
-    Serial.println("Signal Not Detected in Front");
+   // Serial.println("Signal Not Detected in Front");
   }
   else if(f_median_front < 8.0 || f_median_front > 12.0){
     bools.IR_sense = true;
     bools.freq_sense = false;
-    Serial.println("False Signal Detected in Front");
+    //Serial.println("False Signal Detected in Front");
   }
 
   if(millis()-t_change_front > IR_SENSE_DELAY){ // timeout if signal hasn't been seen for a while
@@ -260,25 +289,25 @@ struct ir_vals  IRSenseFront(struct ir_vals bools, bool IR_state_change){
 
 struct ir_vals  IRSenseRight(struct ir_vals bools, bool IR_state_change){
   if(IR_state_change == true){
-    Serial.println("Calculating Frequency");
+    //Serial.println("Calculating Frequency");
     calculateFreqRight();
     //Serial.println(f_median);
   }
   if(f_median_right > 8.0 && f_median_right < 12.0){
     bools.IR_sense = true;
     bools.freq_sense = true;
-    Serial.println("True Signal Detected on Right");
+    //Serial.println("True Signal Detected on Right");
   }
   else if(f_median_right == 0.0){
     bools.IR_sense = false;
     bools.freq_sense = false;
-    Serial.println("Signal Not Detected on Right");
+    //Serial.println("Signal Not Detected on Right");
   }
   else if(f_median_right < 8.0 || f_median_right > 12.0){
     bools.IR_sense = true;
     bools.freq_sense = false;
-    Serial.println("False Signal Detected on Right");
-    Serial.println(f_median_right);
+    //Serial.println("False Signal Detected on Right");
+    //Serial.println(f_median_right);
   }
 
   if(millis()-t_change_right > IR_SENSE_DELAY){ // timeout if signal hasn't been seen for a while
@@ -295,18 +324,18 @@ struct ir_vals  IRSenseLeft(struct ir_vals bools, bool IR_state_change){
   if(f_median_left > 8.0 && f_median_left < 12.0){
     bools.IR_sense = true;
     bools.freq_sense = true;
-    Serial.println("True Signal Detected on Left");
+    //Serial.println("True Signal Detected on Left");
   }
   else if(f_median_left == 0.0){
     bools.IR_sense = false;
     bools.freq_sense = false;
-    Serial.println("Signal Not Detected on Left");
+    //Serial.println("Signal Not Detected on Left");
   }
   else if(f_median_left < 8.0 || f_median_left > 12.0){
     bools.IR_sense = true;
     bools.freq_sense = false;
-    Serial.println("False Signal Detected on Left");
-    Serial.println(f_median_left);
+    //Serial.println("False Signal Detected on Left");
+    //Serial.println(f_median_left);
   }
 
   if(millis()-t_change_left > IR_SENSE_DELAY){ // timeout if signal hasn't been seen for a while
@@ -374,7 +403,11 @@ void calculateFreqFront() {
 
   if(count_front >= num_samples){  
     sortFreqFront();
-    
+    Serial.println("Array");
+    for(int i=0; i<num_samples; i++){
+      Serial.println(f_front[i]);
+    }
+    Serial.println("-----------");
     if(num_samples%2 == 0){  
       f_median_front = (f_front[(int)floor((float)num_samples/2.0)]+f_front[(int)ceil((float)num_samples/2.0)])/2.0;
     }
@@ -382,6 +415,9 @@ void calculateFreqFront() {
       f_median_front = f_front[(int)floor((float)num_samples/2.0)];  
     }
     count_front = 0; 
+    for (int i=0; i < num_samples; i++){
+      f_front[i] = 0;
+    }
   }
 }
 
@@ -394,7 +430,6 @@ void calculateFreqRight() {
 
   if(count_right >= num_samples){  
     sortFreqRight();
-    
     if(num_samples%2 == 0){  
       f_median_right = (f_right[(int)floor((float)num_samples/2.0)]+f_right[(int)ceil((float)num_samples/2.0)])/2.0;
     }
@@ -426,33 +461,42 @@ void calculateFreqLeft() {
 }
 
 void butWhosDriving(){
-  if (front_qti_val > qti_thresh){ //Turn around if edge detected
-    Serial.println("Hit Boundary");
+  //Serial.println(rear_qti_val);
+  //Serial.println(front_qti_val);
+  if (front_qti_val > front_qti_thresh && kill==false){ //Turn around if edge detected
+    //Serial.println("Hit Boundary");
     // Drive backwards
-    right_servo.write(0);
-    left_servo.write(180);
-    //delay(200);
+    rMotVal = 0;
+    lMotVal = 180;
+    right_servo.write(rMotVal);
+    left_servo.write(lMotVal);
+    random_action_time = millis();
+    random_action_timeout = 1500;
+    //delay(1500);
     // Turn around
-    right_servo.write(100);
-    left_servo.write(80);
-    //delay(200);    
+    //right_servo.write(100);
+    //left_servo.write(100);
+    //delay(1000);    
   }
   else if (front_ir_vals.IR_sense == true && front_ir_vals.freq_sense == true){
-    Serial.println("Found IR Signal in Front");
+    //Serial.println("Found IR Signal in Front");
     rMotVal = 180;
     lMotVal = 0;
     no_detect_time = millis();
+    random_action_time = millis();
+    random_action_timeout = 500;
+    random_action = 0;
     navigating = true;
   }
   else if (right_ir_vals.IR_sense == true && right_ir_vals.freq_sense == true){
-    Serial.println("Found IR Signal on Right");
+    //Serial.println("Found IR Signal on Right");
     rMotVal = 180;
     lMotVal = 180;
     no_detect_time = millis();
     navigating = true;
   }
   else if (left_ir_vals.IR_sense == true && left_ir_vals.freq_sense == true){
-    Serial.println("Found IR Signal on Left");
+    //Serial.println("Found IR Signal on Left");
     rMotVal = 0;
     lMotVal = 0;
     no_detect_time = millis();
@@ -460,6 +504,7 @@ void butWhosDriving(){
   }
   else{
     if(navigating == false || millis()-no_detect_time >= no_detect_timeout){
+      // Serial.println("No detect timeout");
       navigating = false;
       randomSearch();
     }
@@ -468,28 +513,38 @@ void butWhosDriving(){
 
 void randomSearch(){
   if(millis()-random_action_time >= random_action_timeout){
-    Serial.println("Selecting Random Action");
+    //Serial.println("Selecting Random Action");
     random_action_time = millis();
-    random_action = random(3);
-    Serial.println(random_action);
+    //random_action = random(3);
+    random_action = !random_action;
+    //Serial.println(random_action);
     switch(random_action){
     case 0: //forward
-      Serial.println("Driving Forward");
-      rMotVal = 100;
-      lMotVal = 80;
+      //Serial.println("Driving Forward");
+      rMotVal = 120;
+      lMotVal = 60;
       random_action_timeout = random(1000, 2000);
       break;
-    case 1: //right
-      Serial.println("Turning Right");
-      rMotVal = 92;
-      lMotVal = 92;
-      random_action_timeout = random(1000, 2000);
+    case 1: //turn
+      int turn_direction = random(2);
+      if(turn_direction == 0){
+        //Serial.println("Turning Right");
+        rMotVal = 93;
+        lMotVal = 93;
+        random_action_timeout = random(2000, 3000);
+      }
+      else{
+        //Serial.println("Turning Left");
+        rMotVal = 87;
+        lMotVal = 87;
+        random_action_timeout = random(2000, 3000);
+      }
       break;
-    case 2: //left
-      Serial.println("Turning Left");
-      rMotVal = 88;
-      lMotVal = 88;
-      random_action_timeout = random(1000, 2000);
+    /* case 2: //left
+     Serial.println("Turning Left");
+     rMotVal = 88;
+     lMotVal = 88;
+     random_action_timeout = random(1000, 2000); */
     }    
   }
 }
