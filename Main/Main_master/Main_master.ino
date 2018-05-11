@@ -101,15 +101,15 @@ void loop() {
     autonomous = false;
     manual = !manual;
     carry = !carry;
-    strcpy(send_array, "");
     for (int i=0; i < 3; i++){
+      strcpy(send_array, "");
       add_int_to_string(send_array, IDs[i], "M", false);
       add_int_to_string(send_array, autonomous, "A", false);
       add_int_to_string(send_array, carry, "C", true);
+      Serial.println(send_array);
+      Serial1.print(send_array);
     }
-    Serial.println(send_array);
-    Serial1.print(send_array);
-    }
+ }
 
   /* Switches between autonomous and manual mode */
   if (digitalRead(autoPin) == HIGH && (millis() - lastDebounceTime) >= debounceDelay){

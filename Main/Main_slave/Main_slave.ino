@@ -7,7 +7,7 @@ Servo left_servo;
 Servo left_spatula_servo;
 Servo right_spatula_servo;
 
-const int THIS_SLAVE_ID = 2; // Header ID - Change for each slave
+const int THIS_SLAVE_ID = 4; // Header ID - Change for each slave
 
 const int rightServoPin = 5;
 const int leftServoPin = 4;
@@ -17,7 +17,7 @@ const int rightSpatulaServoPin = 7;
 int input_ID;
 int rMotVal = 90;
 int lMotVal = 90;
-int spatulaVal = 90;
+int spatulaVal = 85;
 
 /* QTI Stuff */
 int rear_qti_val = 0;
@@ -89,7 +89,7 @@ unsigned long random_action_time = millis();
 int random_action_timeout = random(1000);
 int random_action = 0;
 /* Switches */
-const int SWITCH_PIN = 44;
+const int SWITCH_PIN = 43;
 bool switch_val = false;
 unsigned long switch_send_timeout = 500;
 unsigned long last_switch_send = millis();
@@ -148,7 +148,7 @@ void loop() {
     
     /* Stuff to set only if it matches the slave ID */
     
-    if(input_ID == THIS_SLAVE_ID && manual == true){
+    if(input_ID == THIS_SLAVE_ID && (manual == true || carry == true)){
       if(is_tag_available(inpt_char, "R")){
         rMotVal = parse_string_to_int(inpt_char, "R");
       }
@@ -167,7 +167,7 @@ void loop() {
       int carry_val = parse_string_to_int(inpt_char, "C");
       int auto_val = parse_string_to_int(inpt_char, "A");
       carry = bool(carry_val);
-      autonomous = bool(autonomous);
+      autonomous = bool(auto_val);
       if(!autonomous && !carry){
         manual = true;     
       }
@@ -202,7 +202,7 @@ void loop() {
       Serial1.print(send_array);
     }
   }
-  else if (digitalRead(SWITCH_PIN) == LOW){ //assumes switch contact lost in carry mode
+  /*else if (digitalRead(SWITCH_PIN) == LOW){ //assumes switch contact lost in carry mode
     if(init_switch_hit == true){ 
       init_switch_hit = false;
       carry = false;
@@ -219,7 +219,7 @@ void loop() {
       Serial.println("Switch Lost");
       Serial1.print(send_array);
     }
-  }
+  }*/
   front_ir_vals = IRSenseFront(front_ir_vals, front_IR_state_change);
   //right_ir_vals = IRSenseRight(right_ir_vals, right_IR_state_change);
   //left_ir_vals = IRSenseLeft(left_ir_vals, left_IR_state_change);
@@ -231,16 +231,18 @@ void loop() {
 
   rear_qti_val = QTIRead(REAR_QTI_PIN);
   front_qti_val = QTIRead(FRONT_QTI_PIN);
-  Serial.println("QTI");
-  Serial.println(rear_qti_val);
-  Serial.println(front_qti_val);
+//  Serial.println("QTI");
+//  Serial.println(rear_qti_val);
+//  Serial.println(front_qti_val);
   amIDead();
   
   if(kill){
     rMotVal = 90;
     lMotVal = 90;
   }
-  
+
+  Serial.println(rMotVal);
+  Serial.println(lMotVal);
   right_servo.write(rMotVal);
   left_servo.write(lMotVal);
   left_spatula_servo.write(spatulaVal);
