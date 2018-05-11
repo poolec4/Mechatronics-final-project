@@ -7,7 +7,7 @@ Servo left_servo;
 Servo left_spatula_servo;
 Servo right_spatula_servo;
 
-const int THIS_SLAVE_ID = 4; // Header ID - Change for each slave
+const int THIS_SLAVE_ID = 2; // Header ID - Change for each slave
 
 const int rightServoPin = 5;
 const int leftServoPin = 4;
@@ -91,6 +91,8 @@ int random_action = 0;
 /* Switches */
 const int SWITCH_PIN = 44;
 bool switch_val = false;
+unsigned long switch_send_timeout = 500;
+unsigned long last_switch_send = millis();
 
 void setup() {
   Serial.begin(57600);
@@ -118,12 +120,13 @@ void setup() {
       rear_qti_thresh = 400;
       front_qti_thresh = 200;
       break;
-
     case 3:
-
+      rear_qti_thresh = 600;
+      front_qti_thresh = 200;
       break;
     case 4:
-
+      rear_qti_thresh = 400;
+      front_qti_thresh = 200;
       break;
   }
 }
@@ -159,30 +162,64 @@ void loop() {
     if(is_tag_available(inpt_char, "S")){
       spatulaVal = parse_string_to_int(inpt_char, "S");
     }
-    // Check is master is in carry mode
-    if(is_tag_available(inpt_char, "C")){
+    // Check master's mode
+    if(is_tag_available(inpt_char, "C") && is_tag_available(inpt_char, "A")){
       int carry_val = parse_string_to_int(inpt_char, "C");
+      int auto_val = parse_string_to_int(inpt_char, "A");
       carry = bool(carry_val);
-      manual = !carry;
+      autonomous = bool(autonomous);
+      if(!autonomous && !carry){
+        manual = true;     
       }
+      else{
+        manual = false;
+      }
+    }
+    if(carry){
+      digitalWrite(YELLOW_LED_PIN, HIGH);
+    }
+    else{
+      digitalWrite(YELLOW_LED_PIN, LOW);
+    }
     Serial.println(inpt);
   }
-  //Check if switch is pressed
+  //Check switch state
   if(digitalRead(SWITCH_PIN) == HIGH){
     if(init_switch_hit == false){
       init_switch_hit = true;
       autonomous = false;
       manual = true;
-      rMotVal = 90;
-      lMotVal = 90;
+      rMotVal = 91;
+      lMotVal = 89;
+    }
+    if(millis()-last_switch_send >= switch_send_timeout){
+      last_switch_send = millis();
       strcpy(send_array, "");
       add_int_to_string(send_array, THIS_SLAVE_ID, "M", false);
-      add_int_to_string(send_array, manual, "B", true);
+      add_int_to_string(send_array, init_switch_hit, "B", true);
       Serial.println(send_array);
       Serial.println("Read Switch");
       Serial1.print(send_array);
     }
-  } 
+  }
+  else if (digitalRead(SWITCH_PIN) == LOW){ //assumes switch contact lost in carry mode
+    if(init_switch_hit == true){ 
+      init_switch_hit = false;
+      carry = false;
+      manual = true;
+      rMotVal = 91;
+      lMotVal = 89;
+    }
+    if(millis()-last_switch_send >= switch_send_timeout){
+      last_switch_send = millis();
+      strcpy(send_array, "");
+      add_int_to_string(send_array, THIS_SLAVE_ID, "M", false);
+      add_int_to_string(send_array, init_switch_hit, "B", true);
+      Serial.println(send_array);
+      Serial.println("Switch Lost");
+      Serial1.print(send_array);
+    }
+  }
   front_ir_vals = IRSenseFront(front_ir_vals, front_IR_state_change);
   //right_ir_vals = IRSenseRight(right_ir_vals, right_IR_state_change);
   //left_ir_vals = IRSenseLeft(left_ir_vals, left_IR_state_change);
@@ -349,11 +386,9 @@ struct ir_vals  IRSenseLeft(struct ir_vals bools, bool IR_state_change){
 void IRLEDs(bool IR_sense, bool freq_sense){ //Only call for front IR sensor
   if (IR_sense == true && freq_sense == true){
     digitalWrite(GREEN_LED_PIN, HIGH);
-    digitalWrite(YELLOW_LED_PIN, LOW);
   }
   else{
     digitalWrite(GREEN_LED_PIN, LOW);
-    digitalWrite(YELLOW_LED_PIN, HIGH);
   }
 }
 /* Sort Frequencies */

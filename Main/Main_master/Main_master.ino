@@ -11,6 +11,7 @@ const int leftPin = 7;
 const int cyclePin = 10;
 const int spatulaPin = A0;
 const int carryPin = 5;
+const int autoPin = 4;
 
 unsigned long lastDebounceTime = 0;  // the last time the output pin was toggled
 unsigned long debounceDelay = 250;    // the debounce time; increase if the output flickers
@@ -22,8 +23,8 @@ int spatula_val = 90;
 char send_array[100];
 
 /* Operational Modes */
-bool autonomous = false; //not using yet
-bool manual = true;
+bool autonomous = true; //not using yet
+bool manual = false;
 bool carry = false;
 
 /* Read Values */
@@ -39,8 +40,6 @@ void setup() {
     pinMode(ID_LEDs[i], OUTPUT);
   } 
   digitalWrite(ID_LEDs[slave_index], HIGH);
-
-  Serial.println("The board reset...");
 }
 
 void loop() {
@@ -96,21 +95,35 @@ void loop() {
     }
   }
 
-  /* Check for Carry Mode */
-  if (digitalRead(carryPin) == HIGH){
-    if(carry == false){
-      Serial.println("Setting Manual to False");
-      //delay(1000);
-      manual = false;
-      carry = true;
-      strcpy(send_array, "");
-      add_int_to_string(send_array, SLAVE_ID, "M", false);
+  /* Switches between carry and manual mode */
+  if (digitalRead(carryPin) == HIGH && (millis() - lastDebounceTime) >= debounceDelay){
+    lastDebounceTime = millis();
+    autonomous = false;
+    manual = !manual;
+    carry = !carry;
+    strcpy(send_array, "");
+    for (int i=0; i < 3; i++){
+      add_int_to_string(send_array, IDs[i], "M", false);
+      add_int_to_string(send_array, autonomous, "A", false);
       add_int_to_string(send_array, carry, "C", true);
-      Serial.println(send_array);
-      Serial1.print(send_array);
     }
+    Serial.println(send_array);
+    Serial1.print(send_array);
+    }
+
+  /* Switches between autonomous and manual mode */
+  if (digitalRead(autoPin) == HIGH && (millis() - lastDebounceTime) >= debounceDelay){
+    lastDebounceTime = millis();
+    autonomous = !autonomous;
+    manual = !autonomous;
+    carry = false;
+    strcpy(send_array, "");
+    add_int_to_string(send_array, SLAVE_ID, "M", false);
+    add_int_to_string(send_array, autonomous, "A", false);
+    add_int_to_string(send_array, carry, "C", true);
+    Serial.println(send_array);
+    Serial1.print(send_array);
   }
-  Serial.println(carry);
   /* Send Message */
   if(!carry){
     Serial.println("Only Sending to One");
@@ -158,5 +171,5 @@ void loop() {
     }
   }
 
-  delay(500);
+  delay(50);
 }
