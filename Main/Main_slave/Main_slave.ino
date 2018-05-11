@@ -7,7 +7,7 @@ Servo left_servo;
 Servo left_spatula_servo;
 Servo right_spatula_servo;
 
-const int THIS_SLAVE_ID = 4; // Header ID - Change for each slave
+const int THIS_SLAVE_ID = 2; // Header ID - Change for each slave
 
 const int rightServoPin = 5;
 const int leftServoPin = 4;
@@ -17,7 +17,7 @@ const int rightSpatulaServoPin = 7;
 int input_ID;
 int rMotVal = 90;
 int lMotVal = 90;
-int spatulaVal = 85;
+int spatulaVal = 92;
 
 /* QTI Stuff */
 int rear_qti_val = 0;
@@ -91,6 +91,8 @@ int random_action = 0;
 /* Switches */
 const int SWITCH_PIN = 43;
 bool switch_val = false;
+const int LOWER_SWITCH_PIN = 33;
+bool lower_switch_val = false;
 unsigned long switch_send_timeout = 500;
 unsigned long last_switch_send = millis();
 
@@ -514,6 +516,15 @@ void butWhosDriving(){
     //right_servo.write(100);
     //left_servo.write(100);
     //delay(1000);    
+  }
+  else if (digitalRead(LOWER_SWITCH_PIN) == HIGH && kill == false && front_ir_vals.freq_sense == false){
+    Serial.println("Hit lower switch... turning right");
+    rMotVal = 0;
+    lMotVal = 0;
+    right_servo.write(rMotVal);
+    left_servo.write(lMotVal);
+    random_action_time = millis();
+    random_action_timeout = 1500;
   }
   else if (front_ir_vals.IR_sense == true && front_ir_vals.freq_sense == true){
     //Serial.println("Found IR Signal in Front");
