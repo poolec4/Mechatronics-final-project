@@ -236,7 +236,7 @@ void loop() {
 //  Serial.println(front_qti_val);
   amIDead();
   
-  if(kill){
+  if(kill && !carry){
     rMotVal = 90;
     lMotVal = 90;
   }
