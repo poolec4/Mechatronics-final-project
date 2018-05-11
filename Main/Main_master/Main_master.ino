@@ -18,6 +18,8 @@ unsigned long debounceDelay = 250;    // the debounce time; increase if the outp
 
 int right_motor_val = 90;
 int left_motor_val = 90;
+int temp_right_motor_val;
+int temp_left_motor_val;
 int spatula_val = 90;
 
 char send_array[100];
@@ -141,17 +143,33 @@ void loop() {
       Serial.print("Switch Value: ");
       Serial.println(inpt_switch[i]);
       if(inpt_switch[i] == 1){
-        count++;
+        if(digitalRead(downPin) == HIGH){
+            Serial.println("Slowing down #1");
+            temp_left_motor_val = int(0.05*(left_motor_val-90.0)+90);
+            temp_right_motor_val = int(0.05*(right_motor_val-90.0)+90);
+          }
+          else{
+            temp_right_motor_val = right_motor_val;
+            temp_left_motor_val = left_motor_val;
+          }
+         count++;
       }
       if(count > 1){
-         left_motor_val = int(-0.95*(left_motor_val-90.0)+90);
-         right_motor_val = int(-0.95*(right_motor_val-90.0)+90);
+        if(digitalRead(upPin) == HIGH){
+            temp_left_motor_val = int(-0.05*(left_motor_val-90.0)+90);
+            temp_right_motor_val = int(-0.05*(right_motor_val-90.0)+90);
+          }
+          else{
+            temp_right_motor_val = -right_motor_val+180;
+            temp_left_motor_val = -left_motor_val+180;
+          }
       }
+      
       if(inpt_switch[i] == 1){
         strcpy(send_array, "");
         add_int_to_string(send_array, IDs[i], "M", false);
-        add_int_to_string(send_array, left_motor_val, "L", false);
-        add_int_to_string(send_array, right_motor_val, "R", false);
+        add_int_to_string(send_array, temp_left_motor_val, "L", false);
+        add_int_to_string(send_array, temp_right_motor_val, "R", false);
         add_int_to_string(send_array, spatula_val, "S", true);
         Serial.println(send_array);
         Serial1.print(send_array);
