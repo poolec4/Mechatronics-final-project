@@ -25,8 +25,8 @@ int spatula_val = 90;
 char send_array[100];
 
 /* Operational Modes */
-bool autonomous = true; //not using yet
-bool manual = false;
+bool autonomous = false; //not using yet
+bool manual = true;
 bool carry = false;
 
 /* Read Values */

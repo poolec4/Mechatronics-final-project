@@ -7,8 +7,7 @@ Servo left_servo;
 Servo left_spatula_servo;
 Servo right_spatula_servo;
 
-const int THIS_SLAVE_ID = 2; // Header ID - Change for each slave
-
+const int THIS_SLAVE_ID = 3; // Header ID - Change for each slave
 const int rightServoPin = 5;
 const int leftServoPin = 4;
 const int leftSpatulaServoPin = 6;
@@ -78,8 +77,8 @@ boolean left_IR_sense = true;
 boolean left_freq_sense = true; /*
 
 /* Operational Modes */
-bool autonomous = true; //not using yet
-bool manual = false;
+bool autonomous = false; //not using yet
+bool manual = true;
 bool carry = false;
 bool init_switch_hit = false; // checks if switch was just hit
 bool navigating = false;
@@ -95,6 +94,8 @@ const int LOWER_SWITCH_PIN = 33;
 bool lower_switch_val = false;
 unsigned long switch_send_timeout = 500;
 unsigned long last_switch_send = millis();
+unsigned long lower_switch_last_hit = 0; 
+unsigned long lower_switch_timeout = 1500;
 
 void setup() {
   Serial.begin(57600);
@@ -131,6 +132,7 @@ void setup() {
       front_qti_thresh = 200;
       break;
   }
+  randomSeed(THIS_SLAVE_ID);
 }
 
 void loop() {
@@ -138,44 +140,46 @@ void loop() {
     butWhosDriving();
   }
   /* Receive values from XBee */
-  if (Serial1.available() && autonomous == false) {      
+  // Check master's mode
+  if (Serial1.available()){
     strcpy(inpt_char, "");
     inpt = Serial1.readStringUntil('\n');
     //Serial1.read(); // get rid of new line
     inpt.toCharArray(inpt_char, inpt.length()+1);
-    
-    if(is_tag_available(inpt_char, "M")){
-      input_ID = parse_string_to_int(inpt_char, "M"); 
-    }
-    
-    /* Stuff to set only if it matches the slave ID */
-    
-    if(input_ID == THIS_SLAVE_ID && (manual == true || carry == true)){
-      if(is_tag_available(inpt_char, "R")){
-        rMotVal = parse_string_to_int(inpt_char, "R");
-      }
-      if(is_tag_available(inpt_char, "L")){
-        lMotVal = parse_string_to_int(inpt_char, "L");
-      }
-    }
-
-    /* Stuff to set regardless of slave ID */
-    // Get Spatula Value
-    if(is_tag_available(inpt_char, "S")){
-      spatulaVal = parse_string_to_int(inpt_char, "S");
-    }
-    // Check master's mode
     if(is_tag_available(inpt_char, "C") && is_tag_available(inpt_char, "A")){
       int carry_val = parse_string_to_int(inpt_char, "C");
       int auto_val = parse_string_to_int(inpt_char, "A");
       carry = bool(carry_val);
       autonomous = bool(auto_val);
       if(!autonomous && !carry){
-        manual = true;     
+        manual = true;  
+        rMotVal = 90;
+        rMotVal = 90;   
       }
       else{
         manual = false;
       }
+    }
+    if(autonomous == false){     
+      if(is_tag_available(inpt_char, "M")){
+        input_ID = parse_string_to_int(inpt_char, "M"); 
+      }
+    
+       /* Stuff to set only if it matches the slave ID */
+    
+      if(input_ID == THIS_SLAVE_ID && (manual == true || carry == true)){
+        if(is_tag_available(inpt_char, "R")){
+          rMotVal = parse_string_to_int(inpt_char, "R");
+        }
+        if(is_tag_available(inpt_char, "L")){
+          lMotVal = parse_string_to_int(inpt_char, "L");
+        }
+      }
+    }
+    /* Stuff to set regardless of slave ID */
+    // Get Spatula Value
+    if(is_tag_available(inpt_char, "S")){
+      spatulaVal = parse_string_to_int(inpt_char, "S");
     }
     if(carry){
       digitalWrite(YELLOW_LED_PIN, HIGH);
@@ -519,6 +523,7 @@ void butWhosDriving(){
   }
   else if (digitalRead(LOWER_SWITCH_PIN) == HIGH && kill == false && front_ir_vals.freq_sense == false){
     Serial.println("Hit lower switch... turning right");
+    lower_switch_last_hit = millis();
     rMotVal = 0;
     lMotVal = 0;
     right_servo.write(rMotVal);
@@ -526,7 +531,7 @@ void butWhosDriving(){
     random_action_time = millis();
     random_action_timeout = 1500;
   }
-  else if (front_ir_vals.IR_sense == true && front_ir_vals.freq_sense == true){
+  else if (front_ir_vals.IR_sense == true && front_ir_vals.freq_sense == true && millis()-lower_switch_last_hit > lower_switch_timeout){
     //Serial.println("Found IR Signal in Front");
     rMotVal = 180;
     lMotVal = 0;
